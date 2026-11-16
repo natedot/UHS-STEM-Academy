@@ -4,7 +4,12 @@ const NUM_COLS = 5; // Timestamp, Experiment, Material, Qty, Notes
 
 // Feedback / attendance submissions all go to one tab (header in row 1)
 const FEEDBACK_SHEET = "Feedback";
-const FEEDBACK_HEADERS = ["Timestamp", "School", "Session Date", "Attendance", "# Attended", "What Went Well", "What Didn't Go Well", "How Can We Improve"];
+const FEEDBACK_HEADERS = ["Timestamp", "School", "Session Date", "Attendance", "# Attended", "What Went Well", "What Didn't Go Well", "How Can We Improve", "Photos"];
+
+// Session photos are saved in Google Drive (in a folder next to this spreadsheet), one sub-folder per school + date.
+// The Feedback row links to that sub-folder.
+const PHOTO_FOLDER_NAME = "Leaders Hub Photos";
+const MAX_PHOTOS = 10;
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
@@ -115,9 +120,52 @@ function getFeedbackSheet_(ss) {
     sheet.setColumnWidth(4, 220);
     sheet.setColumnWidth(5, 90);
     sheet.setColumnWidths(6, 3, 280);
+    sheet.setColumnWidth(9, 130);
     sheet.getRange("D:H").setWrap(true);
+  } else if (sheet.getRange(1, FEEDBACK_HEADERS.length).getValue() !== "Photos") {
+    // Feedback tab made before photos existed: add the Photos column header
+    sheet.getRange(1, FEEDBACK_HEADERS.length).setValue("Photos")
+        .setFontWeight("bold").setBackground("#D31145").setFontColor("white");
+    sheet.setColumnWidth(FEEDBACK_HEADERS.length, 130);
   }
   return sheet;
+}
+
+/** The "Leaders Hub Photos" folder: created next to this spreadsheet the first time, then remembered */
+function getPhotoRootFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const savedId = props.getProperty("PHOTO_FOLDER_ID");
+  if (savedId) {
+    try { return DriveApp.getFolderById(savedId); } catch (e) { /* folder was deleted: make a new one */ }
+  }
+  const parents = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId()).getParents();
+  const parent = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+  const folder = parent.createFolder(PHOTO_FOLDER_NAME);
+  props.setProperty("PHOTO_FOLDER_ID", folder.getId());
+  return folder;
+}
+
+/**
+ * Run this once from the Apps Script editor after adding photo support: it asks for permission to use
+ * Google Drive and creates the photo folder. The folder's link appears in the Execution log.
+ */
+function setupPhotoFolder() {
+  Logger.log("Photo folder: " + getPhotoRootFolder_().getUrl());
+}
+
+/** Saves the photos (base64 JPEGs from the website) and returns a link formula for the Feedback row */
+function savePhotos_(photos, schoolName, sessionDate) {
+  const root = getPhotoRootFolder_();
+  const folderName = sessionDate + " — " + schoolName;
+  const existing = root.getFoldersByName(folderName);
+  const folder = existing.hasNext() ? existing.next() : root.createFolder(folderName);
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "HHmmss");
+  const toSave = photos.slice(0, MAX_PHOTOS);
+  toSave.forEach((photo, i) => {
+    const bytes = Utilities.base64Decode(String(photo.data));
+    folder.createFile(Utilities.newBlob(bytes, "image/jpeg", folderName + " " + stamp + "-" + (i + 1) + ".jpg"));
+  });
+  return '=HYPERLINK("' + folder.getUrl() + '", "📷 ' + toSave.length + ' photo(s)")';
 }
 
 /** Feedback / attendance form */
@@ -130,11 +178,21 @@ function submitFeedback(data) {
   const names = data.attendees.map(n => n.trim()).filter(n => n !== "");
   if (names.length === 0) return "Error: Please enter at least one name for attendance.";
 
+  // Photos are saved first (outside the lock, since uploading takes a few seconds)
+  let photoLink = "";
+  if (Array.isArray(data.photos) && data.photos.length > 0) {
+    try {
+      photoLink = savePhotos_(data.photos, data.schoolName, data.sessionDate);
+    } catch (error) {
+      return "Error saving photos: " + error.toString();
+    }
+  }
+
   return withLock_(() => {
     const sheet = getFeedbackSheet_(SpreadsheetApp.getActiveSpreadsheet());
     appendRows_(sheet, [[
       new Date(), data.schoolName, data.sessionDate, names.join(", "), names.length,
-      data.wentWell, data.didntGoWell, data.improve
+      data.wentWell, data.didntGoWell, data.improve, photoLink
     ]], 2);
     return "Success";
   });
@@ -197,12 +255,17 @@ function archiveAndPurge() {
   }
 
   const feedbackSheet = ss.getSheetByName(FEEDBACK_SHEET);
-  const feedbackRows = feedbackSheet && feedbackSheet.getLastRow() >= 2
-      ? feedbackSheet.getRange(2, 1, feedbackSheet.getLastRow() - 1, FEEDBACK_HEADERS.length).getValues()
-      : [];
-  for (const row of feedbackRows) {
-    if (row[1] && row[1].toString().trim() !== "") schoolFor(row[1].toString()).feedback.push(row);
-  }
+  const feedbackRange = feedbackSheet && feedbackSheet.getLastRow() >= 2
+      ? feedbackSheet.getRange(2, 1, feedbackSheet.getLastRow() - 1, FEEDBACK_HEADERS.length)
+      : null;
+  const feedbackRows = feedbackRange ? feedbackRange.getValues() : [];
+  // The Photos column holds a link formula; read the formula itself so the link carries over to the archive
+  const feedbackFormulas = feedbackRange ? feedbackRange.getFormulas() : [];
+  feedbackRows.forEach((row, i) => {
+    if (row[1] && row[1].toString().trim() !== "") {
+      schoolFor(row[1].toString()).feedback.push({ row: row, photos: feedbackFormulas[i][8] || row[8] });
+    }
+  });
 
   const schoolNames = Object.keys(schools);
   if (schoolNames.length === 0) {
@@ -251,13 +314,14 @@ function archiveAndPurge() {
       groups.push([expRow + 1, lastAdded()]);                       // Level 4: materials
     }
 
-    for (const fb of school.feedback) {
+    for (const { row: fb, photos } of school.feedback) {
       // fb = [Timestamp, School, Session Date, Attendance, # Attended, Went Well, Didn't Go Well, Improve]
       const fbRow = addRow(["", "", "📝 Feedback " + asText(fb[2] || fb[0]), "Click '+' to view feedback ➔", "", ""], feedbackHeaders);
       addRow(["", "", "", "Attendance (" + fb[4] + ")", fb[3], ""]);
       addRow(["", "", "", "What went well", fb[5], ""]);
       addRow(["", "", "", "What didn't go well", fb[6], ""]);
       addRow(["", "", "", "How can we improve", fb[7], ""]);
+      if (photos) addRow(["", "", "", "Photos", photos, ""]);
       groups.push([fbRow + 1, lastAdded()]);                        // Level 4: feedback details
     }
     groups.push([schoolRow + 1, lastAdded()]);                      // Level 3: everything for this school

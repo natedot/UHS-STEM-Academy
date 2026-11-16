@@ -9,8 +9,8 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css?v=2.2">
     <script src="script.js?v=2.3" defer></script>
-    <link rel="stylesheet" href="leaders.css?v=1.0">
-    <script src="leaders.js?v=1.0" defer></script>
+    <link rel="stylesheet" href="leaders.css?v=1.1">
+    <script src="leaders.js?v=1.1" defer></script>
 </head>
 <body>
 
@@ -106,6 +106,13 @@
                         <div class="form-group">
                             <label for="fbImprove">How can we improve?</label>
                             <textarea id="fbImprove" name="improve" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Photos <span class="hint">(optional, up to 10. Please skip photos where children's names are readable)</span></label>
+                            <input type="file" id="fbPhotos" accept="image/*" multiple hidden>
+                            <div id="photoPreviews" class="photo-previews"></div>
+                            <button type="button" class="hbtn hbtn-add" id="addPhotosBtn">📷 Add Photos</button>
                         </div>
 
                         <button type="submit" class="hbtn hbtn-submit" id="fbSubmitBtn">Submit Feedback</button>

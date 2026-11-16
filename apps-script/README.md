@@ -18,3 +18,8 @@ into can't block it (embedding Google's page did, which caused blank boxes).
 3. Keep **Who has access** set to **Anyone**, or the form shows up blank on some devices.
 
 The password is stored in **Project Settings → Script Properties → `FORM_PASSWORD`**, never in this code.
+
+Session photos from the feedback form are saved to a **Leaders Hub Photos** Google Drive folder next to the sheet
+(its ID is kept in the Script Property `PHOTO_FOLDER_ID`). After adding or moving this script, run the function
+**`setupPhotoFolder`** once from the editor (choose it in the toolbar's function menu → **Run** → allow access)
+so the script is allowed to use Google Drive.

@@ -190,6 +190,69 @@ $('requestForm').addEventListener('submit', async e => {
 });
 
 // --- Feedback / attendance ---
+const MAX_PHOTOS = 10;
+let photos = []; // { data: base64 JPEG (sent to the script), url: preview }
+
+// Phone photos are 3–5 MB each, so they're shrunk to at most 1600 px and re-saved as JPEG before uploading
+// (a few hundred KB each). Re-saving also drops hidden details such as GPS location.
+function shrinkPhoto(file) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const src = URL.createObjectURL(file);
+        img.onload = () => {
+            const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.naturalWidth * scale);
+            canvas.height = Math.round(img.naturalHeight * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(src);
+            const url = canvas.toDataURL('image/jpeg', 0.8);
+            resolve({ url, data: url.split(',')[1] });
+        };
+        img.onerror = () => { URL.revokeObjectURL(src); reject(new Error(`Couldn't read "${file.name}".`)); };
+        img.src = src;
+    });
+}
+
+function renderPhotos() {
+    const box = $('photoPreviews');
+    box.innerHTML = '';
+    photos.forEach((photo, i) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'photo-thumb';
+        const img = document.createElement('img');
+        img.src = photo.url;
+        img.alt = `Photo ${i + 1}`;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'hbtn hbtn-remove';
+        remove.textContent = 'X';
+        remove.setAttribute('aria-label', `Remove photo ${i + 1}`);
+        remove.addEventListener('click', () => { photos.splice(i, 1); renderPhotos(); });
+        thumb.append(img, remove);
+        box.appendChild(thumb);
+    });
+    const btn = $('addPhotosBtn');
+    btn.disabled = photos.length >= MAX_PHOTOS;
+    btn.textContent = photos.length ? `📷 Add More Photos (${photos.length}/${MAX_PHOTOS})` : '📷 Add Photos';
+}
+
+$('addPhotosBtn').addEventListener('click', () => $('fbPhotos').click());
+
+$('fbPhotos').addEventListener('change', async e => {
+    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+    e.target.value = ''; // so picking the same photo again still triggers this
+    const room = MAX_PHOTOS - photos.length;
+    if (files.length > room) alert(`Only ${MAX_PHOTOS} photos per submission, so the first ${room} were added.`);
+    const btn = $('addPhotosBtn');
+    btn.disabled = true;
+    btn.textContent = 'Preparing photos...';
+    for (const file of files.slice(0, room)) {
+        try { photos.push(await shrinkPhoto(file)); } catch (err) { alert(err.message); }
+    }
+    renderPhotos();
+});
+
 function addName() {
     const row = clone('nameTemplate');
     namesList.appendChild(row);
@@ -206,6 +269,8 @@ function resetFeedbackForm() {
     $('fbDate').value = todayString();
     namesList.innerHTML = '';
     addName();
+    photos = [];
+    renderPhotos();
 }
 
 $('addNameBtn').addEventListener('click', () => addName().focus());
@@ -236,7 +301,8 @@ $('feedbackForm').addEventListener('submit', async e => {
         attendees: Array.from(namesList.querySelectorAll('.person-name'), i => i.value),
         wentWell: form.wentWell.value,
         didntGoWell: form.didntGoWell.value,
-        improve: form.improve.value
+        improve: form.improve.value,
+        photos: photos.map(p => ({ data: p.data }))
     };
 
     try {
@@ -248,7 +314,8 @@ $('feedbackForm').addEventListener('submit', async e => {
             [`Attendance (${names.length})`, names],
             ['What went well', [payload.wentWell]],
             ["What didn't go well", [payload.didntGoWell]],
-            ['How can we improve', [payload.improve]]
+            ['How can we improve', [payload.improve]],
+            ...(payload.photos.length ? [['Photos', [`${payload.photos.length} uploaded`]]] : [])
         ]);
         resetFeedbackForm();
     } catch (err) {

@@ -55,11 +55,14 @@ There are four separate pieces, and they live in four different places:
   GitHub Pages publishes whatever is on the `main` branch of this repository.
 - **The Leaders Hub** (`leaders.html`) shows a password box. After unlocking, leaders pick one of two tabs:
   - **📦 Materials Request**: choose a school, list experiments and the materials each one needs.
-  - **📝 Feedback / Attendance**: after a session, list who helped and what went well / badly / could improve.
+  - **📝 Feedback / Attendance**: after a session, list who helped and what went well / badly / could improve,
+    and optionally upload photos.
 - **The Apps Script** is a small program attached to the Google Sheet. The website sends it each submission;
   it checks the password and writes the rows into the right tab.
 - **The Google Sheet** is where inventory leaders work: each school has its own tab, feedback goes to a `Feedback`
   tab, and after each session someone runs **Archive & Purge** to move everything into a tidy, collapsible `Archive` tab.
+- **Session photos** go into a **Leaders Hub Photos** folder in Google Drive (next to the sheet), one sub-folder per
+  school and date. The Feedback row links to that sub-folder.
 
 ---
 
@@ -73,6 +76,7 @@ There are four separate pieces, and they live in four different places:
 | Inventory Google Sheet | Google Drive (link is on the Leaders Hub page) | Inventory leaders (edit), all leaders (comment) | The Apps Script is inside this sheet. |
 | Apps Script + its deployment | Sheet → **Extensions → Apps Script** | The sheet owner | Runs as the account that deployed it. |
 | Leader password | Apps Script → **Project Settings → Script Properties → `FORM_PASSWORD`** | Sheet owner | Never written in any code file. |
+| Session photos | Google Drive folder **Leaders Hub Photos**, in the same Drive folder as the sheet | Share with leaders/advisors only | Photos of children: keep it private (not "anyone with the link"). |
 | Google Calendar | Google Calendar (the club calendar) | Whoever schedules sessions | Events show up on the website automatically. |
 | Instagram | @uhsstem | Social media leads | Linked in every page's footer. |
 
@@ -327,7 +331,8 @@ The calendars are made dark by a colour-inverting trick in `style.css` (`.dark-c
      (name, quantity, optional notes/links). **+ Add Material** adds a row; **+ Add Another Experiment** adds a card.
      Pressing **Enter** in a material row also adds a new row (it never submits by accident).
    - **📝 Feedback / Attendance**: pick the school and date (defaults to today), type the full name of everyone who
-     helped (**Enter** adds the next name), then the three questions.
+     helped (**Enter** adds the next name), then the three questions. Optionally tap **📷 Add Photos** (up to 10;
+     on phones this offers the camera or photo library). Each photo shows as a preview with an **X** to remove it.
 3. **Submit**. A green message and a summary of exactly what was sent appear; the form clears for the next one.
 
 ### What happens behind the scenes
@@ -337,10 +342,13 @@ The calendars are made dark by a colour-inverting trick in `style.css` (`.dark-c
 2. In the Apps Script, `doPost` reads the `action` and runs the matching function:
    - `verifyPassword`: checks the password (used by the Unlock button),
    - `processForm`: writes materials into the school's tab, from row 6 down,
-   - `submitFeedback`: writes one row into the `Feedback` tab.
+   - `submitFeedback`: saves any photos to Google Drive, then writes one row into the `Feedback` tab.
 3. **Every submission includes the password**, and the script checks it again each time. So nobody can skip the
    lock screen and send data directly.
 4. The script replies with `"Success"` or an error message, which the page shows.
+5. **Photos are shrunk in the browser before uploading** (to at most 1600 px, JPEG). Phone photos are 3–5 MB each;
+   after shrinking they're a few hundred KB, so uploads are quick on school Wi-Fi. Re-saving also removes hidden
+   data such as the GPS location where the photo was taken.
 
 ### Why the form is built into the website (not embedded from Google)
 
@@ -362,13 +370,32 @@ any Google sign-in** (`credentials: 'omit'` in `leaders.js`), so it works on eve
 | **One tab per school** (e.g. `Sifton`, `Mill Plain k-2 `) | Rows 1–5: headers (and a session date typed in cell **D1**). Row 6 down: requests, one material per row: *Timestamp · Experiment · Material · Quantity · Notes*. |
 | A **Template** tab (any tab with "Template" in its name) | Blank layout to duplicate for new schools. Ignored by Archive & Purge. |
 | **ORDER** | Ignored by Archive & Purge (used by inventory leaders for ordering). |
-| **Feedback** | Created automatically the first time feedback is submitted: *Timestamp · School · Session Date · Attendance · # Attended · What Went Well · What Didn't Go Well · How Can We Improve*. |
+| **Feedback** | Created automatically the first time feedback is submitted: *Timestamp · School · Session Date · Attendance · # Attended · What Went Well · What Didn't Go Well · How Can We Improve · Photos*. The **Photos** cell is a link such as **📷 4 photo(s)** that opens that session's photo folder. |
 | **Archive** | Created automatically by Archive & Purge. Past sessions, neatly grouped. |
 
 If someone requests materials for a school that has no tab yet, the script creates a basic tab for it.
 It's better to duplicate the template tab yourself first so it has the proper header rows.
 
 Leaders who made a mistake should **comment** on the sheet (the Leaders Hub page links to it); an inventory leader fixes it.
+
+### Session photos (Google Drive)
+
+Photos uploaded with feedback are saved as:
+
+```
+(the Drive folder the sheet is in)
+└── Leaders Hub Photos/
+    ├── 2026-11-06 — Pioneer/
+    │   ├── 2026-11-06 — Pioneer 143015-1.jpg
+    │   └── ...
+    └── 2026-11-06 — Sifton/
+```
+
+- The folder is created automatically the first time. Its ID is remembered in the Script Property `PHOTO_FOLDER_ID`.
+  If someone deletes the folder, a new one is made on the next upload.
+- **Sharing:** share **Leaders Hub Photos** (once) with the leaders and advisors who should see the photos. If the
+  sheet sits in a shared folder, the photos folder inherits that folder's sharing automatically.
+- Photos are **not** deleted by Archive & Purge; they stay in Drive and the archive keeps the link.
 
 ### Archive & Purge (after every session)
 
@@ -380,7 +407,7 @@ the feedback is in:
 3. Type a session name or date (e.g. `10/24/2026` or `Fall Session 1`). Leave blank to use today's date.
 4. The script:
    - copies every school's materials (rows 6+) and all `Feedback` rows into the **Archive** tab,
-   - groups them as **📅 Session → 🏫 School → 🧪 Experiment (materials) / 📝 Feedback (attendance and answers)**,
+   - groups them as **📅 Session → 🏫 School → 🧪 Experiment (materials) / 📝 Feedback (attendance, answers and the photo link)**,
      with **+/-** buttons to expand and collapse,
    - **clears** rows 6+ and cell D1 on every school tab, and clears the Feedback tab (headers stay),
    - shows "Success!".
@@ -407,7 +434,9 @@ Open the inventory Google Sheet → **Extensions → Apps Script**. The project 
 | `doPost(e)` | Entry point for the website's Leaders Hub. Reads `{action, payload}` and calls one of the three below. |
 | `verifyPassword(pw)` | Returns true/false. Compares with the `FORM_PASSWORD` Script Property. |
 | `processForm(data)` | Materials request → rows in the school's tab (never above row 6). |
-| `submitFeedback(data)` | Feedback/attendance → one row in the `Feedback` tab. |
+| `submitFeedback(data)` | Feedback/attendance → saves photos (if any), then one row in the `Feedback` tab. |
+| `savePhotos_(…)` | Saves the uploaded photos into `Leaders Hub Photos/<date> — <school>/` and returns the link for the sheet. |
+| `setupPhotoFolder()` | Run **once by hand** after setting up (or moving) the script: grants Google Drive permission and creates the photo folder. |
 | `onOpen()` | Adds the **🛠️ Leaders Hub Admin** menu when the sheet opens. |
 | `archiveAndPurge()` | The archive routine described above. |
 | `doGet()` | Serves the old `Index.html` form. Not used by the website anymore. |
@@ -477,6 +506,8 @@ This is a public website about working with elementary school children. Please f
 1. **No children's names or identifying details** in photos or text. Blur or crop table signs, name tags and
    whiteboards before uploading (two of the current slideshow photos have blurred name signs for this reason).
    Make sure photos follow the school/district photo-permission rules.
+   Photos uploaded through the Leaders Hub stay **private in Google Drive**. Never set the **Leaders Hub Photos**
+   folder to "Anyone with the link", and pick public website photos from it only after checking them.
 2. **Never put passwords, API keys or private links in this repository.** It's public; anyone can read every
    file and its full history. The leader password lives only in the Apps Script's Script Properties.
 3. **Think carefully about personal phone numbers.** The Contact page lists student leaders' cell numbers.
@@ -494,6 +525,7 @@ This is a public website about working with elementary school children. Please f
 | Strange `<<<<<<<` / `>>>>>>>` text on a page | Leftover merge-conflict markers. Delete those lines and keep the right version. |
 | Leaders Hub: "Could not reach the spreadsheet" | No internet, or the Apps Script deployment is broken. Run the health check (section 9). |
 | Leaders Hub: "Incorrect password" for everyone | Check `FORM_PASSWORD` in Script Properties (no extra spaces). |
+| Feedback with photos: "Error saving photos: … authorization …" | The script was given photo support but nobody ran `setupPhotoFolder` once to grant Google Drive permission (section 9). |
 | Leaders Hub: an error mentioning `doPost`, or the health check fails | The deployment wasn't updated, or "Who has access" isn't **Anyone**. Redeploy with **New version** (section 9). |
 | Requests go to a new, strangely named tab | The school's value in `SCHOOLS` (`leaders.js`) doesn't exactly match the tab name (watch capitals and trailing spaces). |
 | Archive & Purge menu missing | Reload the sheet; you need edit access. |
@@ -517,6 +549,8 @@ For the outgoing lead, before graduating:
       long-term account (e.g. an advisor), then from that account: open **Extensions → Apps Script**, re-add the
       `FORM_PASSWORD` Script Property if missing, **Deploy → New deployment** (Web app, Execute as *Me*, Who has
       access *Anyone*), and put the new `/exec` URL into `SCRIPT_URL` in `leaders.js` (section 9). Run the health check.
+- [ ] **Photos folder:** transfer ownership of the **Leaders Hub Photos** Drive folder along with the sheet. After moving
+      the script to a new account, run `setupPhotoFolder` once from that account (section 9) and check the folder's sharing.
 - [ ] **Google Calendar:** make sure the next leaders can add events.
 - [ ] **Instagram:** pass on the login.
 - [ ] **Password:** change `FORM_PASSWORD` for the new year (section 6.4).
