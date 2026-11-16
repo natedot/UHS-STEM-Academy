@@ -7,11 +7,13 @@ Everything the Leaders Hub collects ends up in the **inventory Google Sheet**.
 This README is the handbook for future leaders. You don't need to be a programmer to do most of what's in here:
 changing names, photos, times and schools is mostly copy, paste and edit. Read **[The big picture](#1-the-big-picture)**
 first, then jump to **[Common tasks](#6-common-tasks-step-by-step)** for step-by-step recipes.
+For the job you'll do every month, see **[The monthly routine](#the-monthly-routine)**.
 
 ---
 
 ## Contents
 
+- ⭐ [The monthly routine](#the-monthly-routine): what to do with the sheet each month
 1. [The big picture](#1-the-big-picture)
 2. [Accounts and access you need](#2-accounts-and-access-you-need)
 3. [What every file does](#3-what-every-file-does)
@@ -25,6 +27,66 @@ first, then jump to **[Common tasks](#6-common-tasks-step-by-step)** for step-by
 11. [Privacy and safety rules](#11-privacy-and-safety-rules)
 12. [Troubleshooting](#12-troubleshooting)
 13. [Handoff checklist](#13-handoff-checklist)
+
+---
+
+## The monthly routine
+
+Every month follows the same three-meeting cycle. The inventory sheet should be **empty and ready** before each
+planning meeting, collect **materials** at the planning meeting, collect **feedback** at the session, then
+**Archive & Purge** so it's empty again for next month.
+
+```
+ Before planning  ──►  Week 1: Planning meeting  ──►  Week 2: Experiment meeting  ──►  Week 3: Session  ──►  Archive & Purge
+ sheet is clear        MATERIALS due that day         nothing to do in the sheet       FEEDBACK due          sheet clear again
+```
+
+### Before the planning meeting: make sure the sheet is clear
+
+- [ ] Open the inventory sheet. Every **school tab** should be empty from **row 6 down**, and the **Feedback** tab
+      should only have its header row.
+- [ ] If last month's data is still there, it wasn't archived. Run **🛠️ Leaders Hub Admin → Archive & Purge Session Data**
+      now (see [section 8](#8-the-inventory-google-sheet-and-archive--purge)), using last month's session date as the name.
+- [ ] Check the **Archive** tab has last month's session in it.
+- [ ] Make sure the Leaders Hub works: open **www.uhsstem.org/leaders.html**, unlock it, and check the school dropdown
+      lists every school you're running this month. (Changes to schools: [section 6.3](#63-add-or-remove-a-school-everywhere).)
+- [ ] Make sure every leader knows the current password.
+
+### Week 1, planning meeting: materials are due that day
+
+- [ ] Remind everyone at the start: **materials requests are due by the end of this meeting.**
+- [ ] Each school's leaders submit through the Leaders Hub → **📦 Materials Request**: one submission per school,
+      with every experiment and every material they'll need (quantities, and links in Notes if it needs ordering).
+- [ ] Leaders should check the summary that appears after submitting. If something's wrong, they comment on the sheet
+      (the Inventory Spreadsheet button on the Leaders Hub) so an inventory leader can fix it. Don't submit twice.
+- [ ] **Before the meeting ends, check for submissions:** go through each school tab in the sheet and confirm it has
+      rows from row 6 down. Any school tab still empty hasn't submitted. Find those leaders before everyone leaves.
+- [ ] After the meeting, inventory uses the school tabs to pack boxes and order anything missing.
+
+### Week 2, experiment meeting: nothing to do
+
+- Leaders practice and test their experiments. **There's nothing to submit or check in the sheet this week.**
+- (If a school realizes they forgot a material, they can still submit an extra Materials Request; it's added under
+  their earlier rows.)
+
+### Week 3, the session: feedback is due
+
+- [ ] After each school's session, its leaders submit the Leaders Hub → **📝 Feedback / Attendance** form:
+      everyone who helped (full names), what went well, what didn't, how to improve, and any photos.
+- [ ] **Check for feedback:** open the **Feedback** tab. There should be a row for every school that had a session.
+      Tip: click the **School** column → **Data → Sort sheet** (or **Create a filter**) to spot which schools are missing.
+- [ ] Follow up with any school that hasn't submitted, until every school is in.
+
+### Once everything is in: Archive & Purge
+
+- [ ] When **every school has its materials and feedback in**, run **🛠️ Leaders Hub Admin → Archive & Purge Session Data**
+      and name it after this session (e.g. `11/20/2026` or `November Session`). Full details: [section 8](#8-the-inventory-google-sheet-and-archive--purge).
+- [ ] Check the **Archive** tab: the new session should be there with every school, its experiments, feedback and photo links.
+- [ ] Check the school tabs (row 6 down) and the Feedback tab are empty again. **The sheet is now ready for next month's planning meeting.**
+
+> **Don't archive early.** Archive & Purge clears the school tabs and Feedback tab. Anything submitted *after* you run
+> it goes into next month's batch, so only run it once everyone's feedback is in. Photos are never deleted; they stay in
+> the Leaders Hub Photos folder in Drive.
 
 ---
 
