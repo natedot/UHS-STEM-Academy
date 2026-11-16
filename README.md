@@ -69,7 +69,7 @@ There are four separate pieces, and they live in four different places:
 |---|---|---|---|
 | Website code | GitHub repository `natedot/uhsstem` | Anyone who edits the website | Ask the repository owner to add you as a collaborator (repo → Settings → Collaborators). |
 | Website hosting | GitHub Pages (repo → Settings → Pages) | Repository owner | Free. Publishes the `main` branch. |
-| Domain `www.uhsstem.org` | Domain registrar: **⚠️ FILL IN: registrar name, account owner, renewal date** | Whoever pays for it | If the domain expires, the website goes offline. See [Handoff checklist](#13-handoff-checklist). |
+| Domain `www.uhsstem.org` | **Porkbun** (porkbun.com) | **Mr. Kelcey Burris** owns the account. See him for login info and renewal. | Registered Sept 2, 2026 for 2 years. **Must be renewed before Sept 2, 2028**, or the website goes offline. See [Handoff checklist](#13-handoff-checklist). |
 | Inventory Google Sheet | Google Drive (link is on the Leaders Hub page) | Inventory leaders (edit), all leaders (comment) | The Apps Script is inside this sheet. |
 | Apps Script + its deployment | Sheet → **Extensions → Apps Script** | The sheet owner | Runs as the account that deployed it. |
 | Leader password | Apps Script → **Project Settings → Script Properties → `FORM_PASSWORD`** | Sheet owner | Never written in any code file. |
@@ -499,7 +499,7 @@ This is a public website about working with elementary school children. Please f
 | Archive & Purge menu missing | Reload the sheet; you need edit access. |
 | Archive & Purge missed some rows | Rows above row 6 on a school tab are never archived (they're headers). Make sure the tab has the 5 header rows. |
 | Calendar is blank | Scroll down to it (it loads on scroll). If still blank, the calendar's sharing must be **public** in Google Calendar settings. |
-| Website completely down / "domain not found" | The domain may have expired. Check the registrar (section 2), and repo → **Settings → Pages** should show `www.uhsstem.org`. Keep the `CNAME` file. |
+| Website completely down / "domain not found" | The domain may have expired: it's due for renewal **before Sept 2, 2028** on **Porkbun**. Ask **Mr. Kelcey Burris** (account owner) to check and renew. Also check repo → **Settings → Pages** shows `www.uhsstem.org`, and keep the `CNAME` file. |
 
 ---
 
@@ -510,8 +510,8 @@ For the outgoing lead, before graduating:
 - [ ] **GitHub:** add the next leaders (and ideally a STEM advisor) as repository collaborators, or transfer the
       repository to an account/organization the club will keep (repo → Settings → *Transfer ownership*).
       A transferred repo keeps GitHub Pages working; re-check **Settings → Pages** afterwards.
-- [ ] **Domain:** write down the registrar, login owner and renewal date in [section 2](#2-accounts-and-access-you-need),
-      and move billing/ownership to someone who will still be here (ideally an advisor).
+- [ ] **Domain:** registered on **Porkbun**; the account belongs to **Mr. Kelcey Burris** (see him for login and renewal).
+      Make sure the next leaders know the renewal deadline: **before Sept 2, 2028** (see [section 2](#2-accounts-and-access-you-need)).
 - [ ] **Google Sheet + Apps Script:** the script currently runs **as the original creator's personal Google account**.
       If that account loses access or is deleted, the Leaders Hub stops working. Transfer ownership of the sheet to a
       long-term account (e.g. an advisor), then from that account: open **Extensions → Apps Script**, re-add the
@@ -526,6 +526,7 @@ For the outgoing lead, before graduating:
 For incoming leaders, in your first week:
 
 - [ ] Get access to the repository, the sheet (edit), the calendar and Instagram.
+- [ ] Put the domain renewal (**before Sept 2, 2028**, Porkbun, via Mr. Kelcey Burris) on the club calendar with a reminder a few months early.
 - [ ] Make one tiny test edit (e.g. fix a typo) to learn the publish flow.
 - [ ] Submit a test request in the Leaders Hub, find it in the sheet, then delete it.
 - [ ] Read [Privacy and safety rules](#11-privacy-and-safety-rules).
