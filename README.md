@@ -132,7 +132,7 @@ There are four separate pieces, and they live in four different places:
 
 | What | Where it lives | Who needs access | Notes |
 |---|---|---|---|
-| Website code | GitHub repository `natedot/uhsstem` | Anyone who edits the website | Ask the repository owner to add you as a collaborator (repo → Settings → Collaborators). |
+| Website code | GitHub repository `natedot/UHS-STEM-Academy` | Anyone who edits the website | Ask the repository owner to add you as a collaborator (repo → Settings → Collaborators). |
 | Website hosting | GitHub Pages (repo → Settings → Pages) | Repository owner | Free. Publishes the `main` branch. |
 | Domain `www.uhsstem.org` | **Porkbun** (porkbun.com) | **Mr. Kelcey Burris** owns the account. See him for login info and renewal. | Registered Sept 2, 2026 for 2 years. **Must be renewed before Sept 2, 2028**, or the website goes offline. See [Handoff checklist](#13-handoff-checklist). |
 | Inventory Google Sheet | Google Drive (link is on the Leaders Hub page) | Inventory leaders (edit), all leaders (comment) | The Apps Script is inside this sheet. |
@@ -226,7 +226,7 @@ To **upload images**: open the folder (e.g. `images/team`), click **Add file →
 ### Option B: On your computer (better for bigger changes)
 
 1. Install [Git](https://git-scm.com/downloads) and an editor such as [VS Code](https://code.visualstudio.com/).
-2. Clone the repository: `git clone https://github.com/natedot/uhsstem.git`
+2. Clone the repository: `git clone https://github.com/natedot/UHS-STEM-Academy.git`
 3. **Preview locally** before publishing. In the project folder run:
    ```
    python3 -m http.server 8000
