@@ -160,17 +160,17 @@ uhsstem/
 ├── manifest.json       Lets people "Add to Home Screen" with the STEM icon
 ├── CNAME               Tells GitHub Pages the site's address is www.uhsstem.org. Don't delete.
 ├── _config.yml         Tells GitHub Pages not to publish the apps-script/ folder
-├── icon.png            Big 512×512 icon (only used for the home-screen app)
 ├── images/
 │   ├── logo.webp           Logo in the top-left of every page
 │   ├── favicon-32.png      Tiny icon in the browser tab
-│   ├── apple-touch-icon.png, icon-192.png   Home-screen icons
-│   ├── hero.webp, hero-600.webp             First slideshow photo (two sizes)
+│   ├── apple-touch-icon.png, icon-192.png, icon-512.png   Home-screen / app icons
+│   ├── social-card.png     Preview image for the GitHub repository (Settings → Social preview)
+│   ├── hero.webp, hero-600.webp   First slideshow photo (two sizes)
 │   ├── slideshow/          Other slideshow photos (each in two sizes: name.webp and name-600.webp)
-│   └── team/               Contact-page photos (120 px) + the two Branches-page photos (400 px)
+│   ├── team/               Contact-page photos (120 px)
+│   └── branches/           Branches-page photos (400 px)
 └── apps-script/
     ├── Code.gs         A COPY of the Apps Script code that runs inside the Google Sheet
-    ├── Index.html      Old embedded form (no longer used by the website; kept as a backup)
     └── README.md       Short deploy notes for the Apps Script
 ```
 
@@ -355,8 +355,21 @@ To remove a photo, delete its `<img>` line (and the two files).
 
 ### 6.6 Dismissal times / session times
 
-These are the three boxes at the bottom of `index.html` under **Dismissal Information and Session Times**.
-Each box has a time in `<h3>` and the schools as `<p>` lines. Edit the text directly.
+These are the boxes at the bottom of `index.html` under **Dismissal Information and Session Times**
+(`<section id="session-times">`). Each box is one time slot:
+
+```html
+<div class="time-card">
+    <h3>12:30 - 1:30 PM</h3>
+    <ul>
+        <li>Harmony K-2</li>
+        <li>Pioneer</li>
+    </ul>
+</div>
+```
+
+Change the time in `<h3>`, add or remove `<li>` lines for schools, or copy a whole `time-card` for a new time slot.
+The schools arrange themselves into two columns automatically.
 
 ### 6.7 Calendar events
 
@@ -486,8 +499,10 @@ the feedback is in:
 
 Open the inventory Google Sheet → **Extensions → Apps Script**. The project has:
 
-- `Code.gs`: all the server code (a copy is in this repository at `apps-script/Code.gs`),
-- `Index.html`: the old embedded form, no longer used (safe to delete together with the `doGet` function).
+- `Code.gs`: all the server code (a copy is in this repository at `apps-script/Code.gs`).
+
+(Older versions also had an `Index.html` file and a `doGet` function for the previous embedded form. They're no
+longer used and have been removed.)
 
 ### What's in `Code.gs`
 
@@ -501,7 +516,6 @@ Open the inventory Google Sheet → **Extensions → Apps Script**. The project 
 | `setupPhotoFolder()` | Run **once by hand** after setting up (or moving) the script: grants Google Drive permission and creates the photo folder. |
 | `onOpen()` | Adds the **🛠️ Leaders Hub Admin** menu when the sheet opens. |
 | `archiveAndPurge()` | The archive routine described above. |
-| `doGet()` | Serves the old `Index.html` form. Not used by the website anymore. |
 | Helpers ending in `_` | Internal helpers: password check, writing rows, a lock so two submissions at the same moment don't overwrite each other. |
 
 ### Deploying a change (very important)
@@ -555,9 +569,10 @@ updated. (Chrome may ask you to type `allow pasting` first.) This writes nothing
 - Every page has the same `<head>`, header/menu and footer. If you change one, change all five.
 - Comment anything non-obvious; the next person will thank you.
 
-**Known quirks (safe to tidy up):**
-- The dismissal-times section on `index.html` uses inline `style="…"` and a `<p1>` tag (should be `<p>`).
-- The Branches page still has "Contact: insert / Email: insert" placeholders and a blank Inventory photo.
+- Use CSS for spacing (classes like `intro`, `page-section`, `spaced-heading` in `style.css`), not stacks of `<br>` tags.
+
+**Still to fill in:** the Branches page has "Contact: insert / Email: insert" placeholders and a blank Inventory photo
+(`images/branches/Inventory.webp`).
 
 ---
 

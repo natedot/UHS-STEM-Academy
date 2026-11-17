@@ -7,8 +7,7 @@ The form itself lives on the website (`leaders.html`, `leaders.js`, `leaders.css
 request to this script's `doPost` without a Google sign-in, so the Google account a device is signed
 into can't block it (embedding Google's page did, which caused blank boxes).
 
-- `Code.gs` – `doPost` entry point, password check, materials requests, feedback/attendance, Archive & Purge menu
-- `Index.html` – the old embedded version of the form (served by `doGet`); no longer used by the website
+- `Code.gs` – `doPost` entry point, password check, materials requests, feedback/attendance (with photos), Archive & Purge menu
 
 ## Updating the live form
 

@@ -11,11 +11,6 @@ const FEEDBACK_HEADERS = ["Timestamp", "School", "Session Date", "Attendance", "
 const PHOTO_FOLDER_NAME = "Leaders Hub Photos";
 const MAX_PHOTOS = 10;
 
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
 /**
  * The Leaders Hub form on the website sends its requests here as JSON: { action, payload }.
  * The website sends them without any Google sign-in, so whatever Google account a device is
@@ -43,7 +38,7 @@ function checkPassword_(pw) {
   return !!real && pw === real;
 }
 
-/** Called by the unlock screen in Index.html */
+/** Called when a leader presses Unlock on the Leaders Hub */
 function verifyPassword(pw) {
   return checkPassword_(pw);
 }
