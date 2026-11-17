@@ -65,7 +65,7 @@ main { padding: 40px 5%; max-width: 1400px; margin: 0 auto; min-height: 80vh; }
 .btn.spaced { margin-top: 40px; }
 .btn.spaced-sm { margin-top: 15px; }
 .btn-outline { background-color: transparent; color: var(--white); border: 2px solid var(--primary-red); padding: 8px 18px; }
-.btn:hover { background-color: #a80d35; transform: translateY(-2px); }
+@media (hover: hover) { .btn:hover { background-color: #a80d35; transform: translateY(-2px); } }
 .btn-outline:hover { background-color: rgba(211, 17, 69, 0.15); }
 
 /* Home page hero */
@@ -80,9 +80,10 @@ main { padding: 40px 5%; max-width: 1400px; margin: 0 auto; min-height: 80vh; }
 .slides { display: flex; height: 100%; transition: transform 0.7s ease-in-out; }
 .slides img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; }
 .slides img:not([src]) { visibility: hidden; }
-.slide-dots { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 8px; }
-.slide-dots button { width: 10px; height: 10px; padding: 0; border: none; border-radius: 50%; background-color: rgba(255, 255, 255, 0.5); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.6); }
-.slide-dots button[aria-current="true"] { background-color: var(--primary-red); transform: scale(1.2); }
+.slide-dots { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; }
+.slide-dots button { width: 22px; height: 22px; padding: 0; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.slide-dots button::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.5); box-shadow: 0 1px 3px rgba(0,0,0,0.6); transition: transform 0.2s ease; }
+.slide-dots button[aria-current="true"]::before { background-color: var(--primary-red); transform: scale(1.2); }
 .slide-arrow {
   position: absolute; top: 50%; width: 44px; height: 44px; padding: 0 0 4px;
   border: none; border-radius: 50%; background-color: rgba(0, 0, 0, 0.55); color: var(--white);
@@ -95,7 +96,7 @@ main { padding: 40px 5%; max-width: 1400px; margin: 0 auto; min-height: 80vh; }
 .slideshow:hover .slide-arrow, .slide-arrow:focus-visible { opacity: 1; transform: translateY(-50%) scale(1); }
 @media (hover: hover) { .slide-arrow:hover { background-color: var(--primary-red); } }
 /* Touch screens can't hover, so keep the arrows faintly visible there */
-@media (hover: none) { .slide-arrow { opacity: 0.8; transform: translateY(-50%) scale(0.9); } }
+@media (hover: none) { .slide-arrow { opacity: 0.8; transform: translateY(-50%); } }
 @media (prefers-reduced-motion: reduce) { .slides { transition: none; } }
 
 /* Contact cards */
@@ -138,6 +139,8 @@ main { padding: 40px 5%; max-width: 1400px; margin: 0 auto; min-height: 80vh; }
 .contact-card a:hover { color: var(--white); text-decoration-thickness: 2px; }
 /* Emails move to their own line as a unit, and only break (before the @) if they still don't fit */
 .contact-card a[href^="mailto"] { display: inline-block; }
+/* Taller tap area for phone/email links, without moving anything */
+.contact-card a, .social-link { display: inline-block; padding: 12px 0; margin: -12px 0; }
 
 /* Branches */
 .branch-grid { display: flex; gap: 30px; margin-top: 30px; justify-content: center; }
@@ -153,9 +156,6 @@ footer { text-align: center; padding: 30px 20px; background-color: var(--dark-bg
 
 /* Mobile Responsive */
 @media (max-width: 950px) {
-  header { flex-direction: column; height: auto; padding: 20px 5%; gap: 15px; }
-  .logo { height: 70px; }
-
   #calendar-section .calendar-flex-container { flex-direction: column; }
   #calendar-section .dark-calendar { height: 450px; }
 
@@ -169,6 +169,12 @@ footer { text-align: center; padding: 30px 20px; background-color: var(--dark-bg
 /* Hidden on desktop */
 .hamburger {
   display: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
@@ -179,7 +185,7 @@ footer { text-align: center; padding: 30px 20px; background-color: var(--dark-bg
   display: block;
   width: 25px;
   height: 3px;
-  margin: 5px auto;
+  margin: 2.5px 0;
   transition: all 0.3s ease-in-out;
   background-color: var(--white);
 }
@@ -188,7 +194,10 @@ footer { text-align: center; padding: 30px 20px; background-color: var(--dark-bg
 body.no-scroll { overflow: hidden; }
 
 @media (max-width: 768px) {
-  .hamburger { display: block; }
+  /* Compact one-row header on phones: logo left, menu button right */
+  header { height: auto; padding: 8px 5%; }
+  .logo { height: 56px; }
+  .hamburger { display: flex; margin-left: auto; margin-right: -10px; } /* right edge (bars line up with the page margin) */
 
   /* Animate the hamburger into an 'X' */
   .hamburger.active .bar:nth-child(1) { transform: translateY(8px) rotate(45deg); }
@@ -215,10 +224,10 @@ body.no-scroll { overflow: hidden; }
   /* Added by script.js to slide the menu into view */
   nav ul.active { left: 0; }
 
-  nav ul li { margin: 25px 0; }
+  nav ul li { margin: 10px 0; }
 
   /* Big, easy-to-tap links */
-  nav ul li a { font-size: 2rem; font-weight: bold; }
+  nav ul li a { display: block; padding: 12px 24px; font-size: 2rem; font-weight: bold; }
   nav ul li a[aria-current="page"] { color: var(--primary-red); border-bottom: none; }
 
   .branch-grid { flex-direction: column; }
@@ -228,4 +237,9 @@ body.no-scroll { overflow: hidden; }
   .contact-card img { width: 48px; height: 48px; }
   .contact-card p { font-size: 0.95rem; }
   .contact-section > summary { font-size: 1.2rem; padding: 15px 18px; }
+}
+
+@media (max-width: 600px) {
+  #calendar-section .calendar-wrapper:first-child { display: none; }
+  #calendar-section .dark-calendar { height: 500px; }
 }

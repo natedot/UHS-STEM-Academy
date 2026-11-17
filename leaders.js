@@ -124,12 +124,14 @@ $('addExpBtn').addEventListener('click', addExperiment);
 
 // One listener handles every card's add/remove buttons
 experimentsContainer.addEventListener('click', e => {
-    const action = e.target.dataset.action;
-    const card = e.target.closest('.experiment-card');
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+    const card = button.closest('.experiment-card');
     if (action === 'add-material') {
         addMaterial(card);
     } else if (action === 'remove-row') {
-        if (card.querySelectorAll('.material-row').length > 1) e.target.parentElement.remove();
+        if (card.querySelectorAll('.material-row').length > 1) button.parentElement.remove();
         else alert('Each experiment needs at least one material!');
     } else if (action === 'remove-card') {
         if (experimentsContainer.children.length > 1) card.remove();
@@ -226,7 +228,7 @@ function renderPhotos() {
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'hbtn hbtn-remove';
-        remove.textContent = 'X';
+        remove.textContent = '✕';
         remove.setAttribute('aria-label', `Remove photo ${i + 1}`);
         remove.addEventListener('click', () => { photos.splice(i, 1); renderPhotos(); });
         thumb.append(img, remove);
@@ -276,8 +278,9 @@ function resetFeedbackForm() {
 $('addNameBtn').addEventListener('click', () => addName().focus());
 
 namesList.addEventListener('click', e => {
-    if (e.target.dataset.action !== 'remove-name') return;
-    if (namesList.children.length > 1) e.target.parentElement.remove();
+    const button = e.target.closest('[data-action="remove-name"]');
+    if (!button) return;
+    if (namesList.children.length > 1) button.parentElement.remove();
     else alert('Please list at least one person!');
 });
 

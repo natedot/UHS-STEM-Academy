@@ -7,10 +7,10 @@
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=2.3">
-    <script src="script.js?v=2.3" defer></script>
-    <link rel="stylesheet" href="leaders.css?v=1.1">
-    <script src="leaders.js?v=1.1" defer></script>
+    <link rel="stylesheet" href="style.css?v=2.4">
+    <script src="script.js?v=2.4" defer></script>
+    <link rel="stylesheet" href="leaders.css?v=1.2">
+    <script src="leaders.js?v=1.2" defer></script>
 </head>
 <body>
 
@@ -129,14 +129,14 @@
                 <input type="text" class="mat-name" placeholder="Material Name" required>
                 <input type="text" class="mat-qty" placeholder="Qty (e.g., 2 boxes)" required>
                 <input type="text" class="mat-notes" placeholder="Notes / Links (Optional)">
-                <button type="button" class="hbtn hbtn-remove" data-action="remove-row">X</button>
+                <button type="button" class="hbtn hbtn-remove" data-action="remove-row" aria-label="Remove material">✕<span class="remove-label"> Remove</span></button>
             </div>
         </template>
 
         <template id="nameTemplate">
             <div class="name-row">
                 <input type="text" class="person-name" placeholder="First and last name" autocomplete="off" required>
-                <button type="button" class="hbtn hbtn-remove" data-action="remove-name">X</button>
+                <button type="button" class="hbtn hbtn-remove" data-action="remove-name" aria-label="Remove person">✕</button>
             </div>
         </template>
 
@@ -144,7 +144,7 @@
             <div class="experiment-card">
                 <div class="experiment-header">
                     <input type="text" class="exp-name" placeholder="Experiment Name (e.g., Slime)" required>
-                    <button type="button" class="hbtn hbtn-remove" data-action="remove-card">X</button>
+                    <button type="button" class="hbtn hbtn-remove" data-action="remove-card" aria-label="Remove experiment">✕</button>
                 </div>
                 <div class="materials-list">
                     <label>Materials Needed for this Experiment:</label>

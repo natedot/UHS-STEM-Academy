@@ -70,6 +70,17 @@ if (slides.length > 1) {
         slideshow.appendChild(arrow);
     });
 
+    // Swipe left/right on phones to change photo (ignored if the finger mostly moved up/down to scroll)
+    let touchStart = null;
+    slideshow.addEventListener('touchstart', e => { touchStart = e.touches[0]; }, { passive: true });
+    slideshow.addEventListener('touchend', e => {
+        if (!touchStart) return;
+        const dx = e.changedTouches[0].clientX - touchStart.clientX;
+        const dy = e.changedTouches[0].clientY - touchStart.clientY;
+        touchStart = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { showSlide(current + (dx < 0 ? 1 : -1)); restartTimer(); }
+    });
+
     // Pause while the mouse is over the photos
     slideshow.addEventListener('mouseenter', () => { hovering = true; clearInterval(timer); });
     slideshow.addEventListener('mouseleave', () => { hovering = false; restartTimer(); });

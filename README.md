@@ -381,6 +381,7 @@ embed URL, and in `index.html` replace the URL inside **both** `data-src="…"` 
 `#calendar-section`. Keep `data-src`; the page loads the calendars only when someone scrolls to them.
 
 The calendars are made dark by a colour-inverting trick in `style.css` (`.dark-calendar`), which is why event colours look a bit different.
+On phones only the second calendar (the event list) is shown, because a month grid is too cramped to read on a small screen.
 
 ### 6.8 Other small edits
 
@@ -561,6 +562,13 @@ updated. (Chrome may ask you to type `allow pasting` first.) This writes nothing
 - The Google Calendars load only when someone scrolls to them (the slowest part of the site).
 - Page-specific code stays in its own files (`leaders.css`/`leaders.js`) so other pages don't download it.
 - No frameworks or libraries: plain HTML/CSS/JS. Please don't add jQuery, Bootstrap, etc.
+
+**Phones first:** most visitors use phones. When you change something, check it at phone width (F12 → phone icon) and keep these rules:
+- Buttons and links people tap should be at least **44 px** tall/wide.
+- Form boxes need **16 px** text on phones, or iPhones zoom in when someone taps them (already set in `leaders.css`).
+- Nothing should make the page scroll sideways.
+- On phones the header is one compact row with the ☰ menu button; the full-screen menu opens from it.
+- The slideshow can be swiped left/right.
 
 **Code conventions:**
 - Shared styles → `style.css`; shared behaviour → `script.js`; Leaders Hub only → `leaders.css` / `leaders.js`.

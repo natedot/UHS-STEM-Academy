@@ -123,6 +123,7 @@
   min-width: 40px;
 }
 .hbtn-remove:hover { background-color: rgba(255, 77, 77, 0.1); }
+.hbtn-remove .remove-label { display: none; } /* "Remove" text only shows on phones */
 
 .hbtn-submit {
   background-color: var(--primary-red);
@@ -134,7 +135,7 @@
   text-transform: uppercase;
   letter-spacing: 1px;
 }
-.hbtn-submit:hover { background-color: #a80d35; transform: translateY(-2px); }
+@media (hover: hover) { .hbtn-submit:hover { background-color: #a80d35; transform: translateY(-2px); } }
 .hbtn-submit:disabled { opacity: 0.6; cursor: default; transform: none; }
 
 .hub .status {
@@ -166,11 +167,13 @@
 @media (max-width: 768px) {
   /* Edge to edge on phones (cancels the page's 5% side padding) */
   .hub { margin: 0 -5vw; padding: 20px 12px; border-radius: 0; box-shadow: none; }
+  /* 16px text stops iPhones from zooming in when a box is tapped; taller boxes are easier to hit */
+  .hub select, .hub input, .hub textarea { font-size: 16px; padding: 12px; }
+  .hbtn { min-height: 44px; min-width: 44px; }
 }
 
 @media (max-width: 600px) {
   .hub .experiment-card { padding: 12px 10px; }
-  .hub .experiment-header { flex-direction: column; align-items: stretch; }
   .hub .material-row {
     flex-direction: column;
     background-color: #1a1a1a;
@@ -179,5 +182,7 @@
     border: 1px solid var(--border-dark);
   }
   .hub .material-row input { margin-bottom: 5px; }
-  .hub .material-row .hbtn-remove { width: 100%; margin-top: 5px; border-style: dashed; }
+  /* Small "✕ Remove" under each material instead of a full-width red bar */
+  .hub .material-row .hbtn-remove { align-self: flex-end; min-width: 0; padding: 8px 12px; border: none; }
+  .hub .material-row .hbtn-remove .remove-label { display: inline; }
 }
