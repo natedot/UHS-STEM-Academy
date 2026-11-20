@@ -156,7 +156,7 @@ uhsstem/
 ├── branches.html       "Branches" page (linked from the bottom of the Contact page)
 ├── about-us.html       About Us page: currently empty and NOT linked in the menu (hidden on purpose)
 ├── style.css           Styles shared by every page (colours, header, buttons, slideshow, contact cards…)
-├── script.js           Code shared by every page (phone menu, slideshow, loading the calendars)
+├── script.js           Code shared by every page (phone menu, slideshow, calendars, Visit Log, SCRIPT_URL)
 ├── manifest.json       Lets people "Add to Home Screen" with the STEM icon
 ├── CNAME               Tells GitHub Pages the site's address is www.uhsstem.org. Don't delete.
 ├── _config.yml         Tells GitHub Pages not to publish the apps-script/ folder
@@ -415,7 +415,7 @@ On phones only the second calendar (the event list) is shown, because a month gr
 
 ### What happens behind the scenes
 
-1. `leaders.js` sends the data to the Apps Script's web address (`SCRIPT_URL` at the top of `leaders.js`)
+1. `leaders.js` sends the data to the Apps Script's web address (`SCRIPT_URL` in `script.js`)
    as a small message like `{ "action": "processForm", "payload": { …the form… } }`.
 2. In the Apps Script, `doPost` reads the `action` and runs the matching function:
    - `verifyPassword`: checks the password (used by the Unlock button),
@@ -426,8 +426,8 @@ On phones only the second calendar (the event list) is shown, because a month gr
 4. The script replies with `"Success"` or an error message, which the page shows.
 5. **Every submission is recorded in the Submission Log** with the submitter's name, IP address and device details
    (see [section 8](#8-the-inventory-google-sheet-and-archive--purge)). Wrong passwords are logged too, and every
-   time someone opens the Leaders Hub page goes in the **Visit Log**. The IP address comes from a free lookup
-   service (ipify) that the browser asks when the page loads; if it's blocked, the logs say "unavailable".
+   page visit on the website goes in the **Visit Log** (from `script.js`, after the page has loaded). The IP address
+   comes from a free lookup service (ipify) that the browser asks; if it's blocked, the logs say "unavailable".
 6. **Text that starts with `=`, `+`, `-` or `@` is stored as plain text**, never as a formula, so nobody can
    slip a spreadsheet formula (which could leak data) into the sheet through a form.
 7. **Photos are shrunk in the browser before uploading** (to at most 1600 px, JPEG). Phone photos are 3–5 MB each;
@@ -457,7 +457,7 @@ any Google sign-in** (`credentials: 'omit'` in `leaders.js`), so it works on eve
 | **Feedback** | Created automatically the first time feedback is submitted: *Timestamp · School · Session Date · Attendance · # Attended · What Went Well · What Didn't Go Well · How Can We Improve · Photos · Submitted By*. The **Photos** cell is a link such as **📷 4 photo(s)** that opens that session's photo folder. |
 | **Archive** | Created automatically by Archive & Purge. Past sessions, neatly grouped. |
 | **Submission Log** | Created automatically. One row for every materials request, feedback submission and **wrong password**: *Timestamp · Action · School · Submitted By · Details · IP Address · Device · Screen · Language · Time Zone · Device ID · Browser Info*. **Never cleared** by Archive & Purge; it's the permanent record. |
-| **Visit Log** | Created automatically. One row each time someone opens the **Leaders Hub** page (once per browser session): *Timestamp · Page · IP Address · Came From · Device · Screen · Language · Time Zone · Device ID · Browser Info*. Also never cleared. Limited to 10 rows a minute and 300 a day so a bot can't flood it. |
+| **Visit Log** | Created automatically. One row the first time someone opens each page of the website in a browser session (Home, Leaders Hub, Contact, Branches): *Timestamp · Page · IP Address · Came From · Device · Screen · Language · Time Zone · Device ID · Browser Info*. Also never cleared. Limited to 20 rows a minute and 1,000 a day so a bot can't flood it. Google Sheets holds about 10 million cells, so if it ever gets huge, delete old rows once a year. |
 
 If someone requests materials for a school that has no tab yet, the script creates a basic tab for it.
 It's better to duplicate the template tab yourself first so it has the proper header rows.
@@ -526,7 +526,7 @@ longer used and have been removed.)
 | `savePhotos_(…)` | Saves the uploaded photos into `Leaders Hub Photos/<date> — <school>/` and returns the link for the sheet. |
 | `setupPhotoFolder()` | Run **once by hand** after setting up (or moving) the script: grants Google Drive permission and creates the photo folder. |
 | `logEvent_(…)` | Adds a row to the **Submission Log** tab. |
-| `logVisit(payload)` | Adds a row to the **Visit Log** tab when the Leaders Hub opens (rate-limited). |
+| `logVisit(payload)` | Adds a row to the **Visit Log** tab when someone opens a page (rate-limited). |
 | `clean_(text)` / `fullName_(text)` | Make form text safe for the sheet (length limit, no formulas) / check a first + last name. |
 | `onOpen()` | Adds the **🛠️ Leaders Hub Admin** menu when the sheet opens. |
 | `archiveAndPurge()` | The archive routine described above. |
@@ -547,7 +547,7 @@ Settings must stay:
 
 > ❌ **Don't** click **New deployment**: that creates a **new web address**, and the website would keep talking to
 > the old one. If you ever must (for example after transferring ownership), copy the new `/exec` URL and paste it
-> into `SCRIPT_URL` at the top of `leaders.js`, then bump `leaders.js?v=` in `leaders.html`.
+> into `SCRIPT_URL` in `script.js`, then bump `script.js?v=` on all five pages.
 
 ### Quick health check
 
@@ -614,9 +614,9 @@ This is a public website about working with elementary school children. Please f
 5. **The Submission Log and Visit Log are for accountability, not tracking.** What's recorded: name (submissions
    only), **IP address**, device/browser (e.g. "Chrome on ChromeOS"), screen size, language, time zone, a random
    **device ID** saved in that browser (to tell whether entries came from the same device), and the browser's full
-   description. Only the **Leaders Hub** page is logged, never the public pages.
+   description. Every page of the website is logged (each page once per browser session).
    - **About the IP address:** Google Apps Script can't see it, so the browser looks it up from **ipify**
-     (api.ipify.org), which means each Leaders Hub visitor's IP is sent to that service. Because the browser reports
+     (api.ipify.org), which means every visitor's IP is sent to that service. Because the browser reports
      it, a determined person can fake or block it, and on school Wi-Fi everyone shares the school's IP. Treat it as
      a clue, not proof. The **device ID** is usually more useful.
    - Only advisors and lead inventory leaders should look at the logs, and only if something goes wrong. Protect
@@ -658,7 +658,7 @@ For the outgoing lead, before graduating:
       If that account loses access or is deleted, the Leaders Hub stops working. Transfer ownership of the sheet to a
       long-term account (e.g. an advisor), then from that account: open **Extensions → Apps Script**, re-add the
       `FORM_PASSWORD` Script Property if missing, **Deploy → New deployment** (Web app, Execute as *Me*, Who has
-      access *Anyone*), and put the new `/exec` URL into `SCRIPT_URL` in `leaders.js` (section 9). Run the health check.
+      access *Anyone*), and put the new `/exec` URL into `SCRIPT_URL` in `script.js` (section 9). Run the health check.
 - [ ] **Photos folder:** transfer ownership of the **Leaders Hub Photos** Drive folder along with the sheet. After moving
       the script to a new account, run `setupPhotoFolder` once from that account (section 9) and check the folder's sharing.
 - [ ] **Google Calendar:** make sure the next leaders can add events.

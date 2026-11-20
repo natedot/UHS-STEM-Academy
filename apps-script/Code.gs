@@ -8,14 +8,14 @@ const FEEDBACK_HEADERS = ["Timestamp", "School", "Session Date", "Attendance", "
 
 // Two permanent logs (Archive & Purge never clears them):
 //  - Submission Log: every submission and every wrong password, with who sent it and from what device
-//  - Visit Log: every time someone opens the Leaders Hub page (once per browser session)
+//  - Visit Log: every time someone opens a page of the website (each page once per browser session)
 // The IP address is looked up by the visitor's browser (ipify), so it's "unavailable" if that lookup was blocked.
 const LOG_SHEET = "Submission Log";
 const LOG_HEADERS = ["Timestamp", "Action", "School", "Submitted By", "Details", "IP Address", "Device", "Screen", "Language", "Time Zone", "Device ID", "Browser Info (full)"];
 const VISIT_SHEET = "Visit Log";
 const VISIT_HEADERS = ["Timestamp", "Page", "IP Address", "Came From", "Device", "Screen", "Language", "Time Zone", "Device ID", "Browser Info (full)"];
-const MAX_VISITS_PER_MINUTE = 10;  // these two limits stop a bot from flooding the Visit Log
-const MAX_VISITS_PER_DAY = 300;
+const MAX_VISITS_PER_MINUTE = 20;  // these two limits stop a bot from flooding the Visit Log
+const MAX_VISITS_PER_DAY = 1000;
 
 // Session photos are saved in Google Drive (in a folder next to this spreadsheet), one sub-folder per school + date.
 // The Feedback row links to that sub-folder.
@@ -110,14 +110,14 @@ function logEvent_(action, school, submittedBy, details, client) {
 }
 
 /**
- * Called when someone opens the Leaders Hub page (no password needed, so it's rate-limited:
- * at most MAX_VISITS_PER_MINUTE rows a minute and MAX_VISITS_PER_DAY a day, and one per device every 10 minutes).
+ * Called when someone opens a page of the website (script.js). No password is needed, so it's rate-limited:
+ * at most MAX_VISITS_PER_MINUTE rows a minute and MAX_VISITS_PER_DAY a day, and one per device per page every 10 minutes.
  */
 function logVisit(payload) {
   const p = payload && typeof payload === "object" ? payload : {};
   const d = deviceColumns_(p.client);
   const cache = CacheService.getScriptCache();
-  const deviceKey = "visit-" + (d.rest[4] || d.ip).slice(0, 200);
+  const deviceKey = ("visit-" + (d.rest[4] || d.ip) + "-" + p.page).slice(0, 240);
   if (cache.get(deviceKey)) return "OK";
   const minuteKey = "visits-min-" + Math.floor(Date.now() / 60000);
   const dayKey = "visits-day-" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");

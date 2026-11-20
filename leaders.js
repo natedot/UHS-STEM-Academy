@@ -1,8 +1,7 @@
 // Leaders Hub form (only loaded on leaders.html).
 // Requests go straight to the Apps Script web app (apps-script/Code.gs → doPost) without any Google
 // sign-in attached, so the Google account a device is signed into can't block the form.
-
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbysDq5um3VDU4LjH4Bnhhw3-myMZpQP-RjdVgUwbBjKF1cj2Ygu3Jdu3scMWyQJ2uEZ/exec';
+// SCRIPT_URL and clientInfo() (device details + IP) live in script.js, which every page loads first.
 
 // Schools shown in both dropdowns. The value must match the school's tab name in the sheet exactly.
 const SCHOOLS = [
@@ -77,59 +76,7 @@ function showSummary(box, title, items) {
     box.hidden = false;
 }
 
-// --- Who is submitting? (name pop-up + device details, recorded in the sheet's Submission Log) ---
-
-// A random ID saved in this browser, so the log shows when submissions come from the same device
-function deviceId() {
-    try {
-        let id = localStorage.getItem('uhs-device-id');
-        if (!id) {
-            id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
-            localStorage.setItem('uhs-device-id', id);
-        }
-        return id;
-    } catch (err) {
-        return 'unavailable (private browsing?)';
-    }
-}
-
-// A readable summary like "Chrome on ChromeOS" or "Safari on iPhone"
-function describeDevice(ua) {
-    const os = /CrOS/.test(ua) ? 'ChromeOS'
-        : /iPhone/.test(ua) ? 'iPhone'
-        : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad'
-        : /Android/.test(ua) ? 'Android'
-        : /Windows/.test(ua) ? 'Windows'
-        : /Macintosh/.test(ua) ? 'Mac'
-        : /Linux/.test(ua) ? 'Linux' : 'Unknown device';
-    const browser = /Edg\//.test(ua) ? 'Edge'
-        : /OPR\//.test(ua) ? 'Opera'
-        : /CriOS|Chrome\//.test(ua) ? 'Chrome'
-        : /FxiOS|Firefox\//.test(ua) ? 'Firefox'
-        : /Safari\//.test(ua) ? 'Safari' : 'Unknown browser';
-    return `${browser} on ${os}`;
-}
-
-// The browser can't see its own public IP address, so it asks ipify (a free lookup service) once per page load.
-// If that's blocked or slow (3 seconds), the logs just say "unavailable".
-const ipAddress = Promise.race([
-    fetch('https://api.ipify.org?format=json', { credentials: 'omit' }).then(r => r.json()).then(d => d.ip),
-    new Promise(resolve => setTimeout(() => resolve('unavailable'), 3000))
-]).catch(() => 'unavailable');
-
-async function clientInfo() {
-    let timeZone = '';
-    try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (err) {}
-    return {
-        ip: await ipAddress,
-        device: describeDevice(navigator.userAgent),
-        screen: `${screen.width}×${screen.height} @${window.devicePixelRatio || 1}x`,
-        language: navigator.language,
-        timeZone,
-        deviceId: deviceId(),
-        userAgent: navigator.userAgent
-    };
-}
+// --- Who is submitting? (name pop-up; device details come from clientInfo() in script.js) ---
 
 // Shows the pop-up and resolves with the typed full name, or null if the leader pressed Cancel / Esc
 function askForName() {
@@ -421,17 +368,6 @@ $('feedbackForm').addEventListener('submit', async e => {
     }
 });
 
-// --- Visit Log: record that someone opened the Leaders Hub (once per browser session) ---
-async function logVisit() {
-    try {
-        if (sessionStorage.getItem('uhs-visit-logged')) return;
-        sessionStorage.setItem('uhs-visit-logged', '1');
-    } catch (err) { /* private browsing: log anyway */ }
-    try {
-        await callScript('logVisit', { page: 'Leaders Hub', referrer: document.referrer, client: await clientInfo() });
-    } catch (err) { /* never bother the visitor if logging fails */ }
-}
-
 // --- Start-up ---
 document.querySelectorAll('.school-select').forEach(select => {
     select.innerHTML = '<option value="" disabled selected>Select a location...</option>';
@@ -439,4 +375,3 @@ document.querySelectorAll('.school-select').forEach(select => {
 });
 resetFeedbackForm();
 addExperiment(); // Start with one experiment card
-logVisit();

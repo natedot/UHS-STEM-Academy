@@ -102,3 +102,87 @@ if ('IntersectionObserver' in window) {
 } else {
     calendars.forEach(loadCalendar);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Visit Log: every page records the first visit per browser session in the sheet's "Visit Log" tab
+// (IP address, device details, page). The Leaders Hub also uses these for its Submission Log.
+// ---------------------------------------------------------------------------------------------
+
+// The Apps Script web app (apps-script/Code.gs → doPost). If it's ever redeployed with a new URL, change it here.
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbysDq5um3VDU4LjH4Bnhhw3-myMZpQP-RjdVgUwbBjKF1cj2Ygu3Jdu3scMWyQJ2uEZ/exec';
+
+// A random ID saved in this browser, so the log shows when submissions come from the same device
+function deviceId() {
+    try {
+        let id = localStorage.getItem('uhs-device-id');
+        if (!id) {
+            id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+            localStorage.setItem('uhs-device-id', id);
+        }
+        return id;
+    } catch (err) {
+        return 'unavailable (private browsing?)';
+    }
+}
+
+// A readable summary like "Chrome on ChromeOS" or "Safari on iPhone"
+function describeDevice(ua) {
+    const os = /CrOS/.test(ua) ? 'ChromeOS'
+        : /iPhone/.test(ua) ? 'iPhone'
+        : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad'
+        : /Android/.test(ua) ? 'Android'
+        : /Windows/.test(ua) ? 'Windows'
+        : /Macintosh/.test(ua) ? 'Mac'
+        : /Linux/.test(ua) ? 'Linux' : 'Unknown device';
+    const browser = /Edg\//.test(ua) ? 'Edge'
+        : /OPR\//.test(ua) ? 'Opera'
+        : /CriOS|Chrome\//.test(ua) ? 'Chrome'
+        : /FxiOS|Firefox\//.test(ua) ? 'Firefox'
+        : /Safari\//.test(ua) ? 'Safari' : 'Unknown browser';
+    return `${browser} on ${os}`;
+}
+
+// The browser can't see its own public IP address, so it asks ipify (a free lookup service), once per page.
+// If that's blocked or slow (3 seconds), the logs just say "unavailable".
+let ipLookup; // started the first time it's needed, then reused
+function ipAddress() {
+    ipLookup = ipLookup || Promise.race([
+        fetch('https://api.ipify.org?format=json', { credentials: 'omit' }).then(r => r.json()).then(d => d.ip),
+        new Promise(resolve => setTimeout(() => resolve('unavailable'), 3000))
+    ]).catch(() => 'unavailable');
+    return ipLookup;
+}
+
+async function clientInfo() {
+    let timeZone = '';
+    try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (err) {}
+    return {
+        ip: await ipAddress(),
+        device: describeDevice(navigator.userAgent),
+        screen: `${screen.width}×${screen.height} @${window.devicePixelRatio || 1}x`,
+        language: navigator.language,
+        timeZone,
+        deviceId: deviceId(),
+        userAgent: navigator.userAgent
+    };
+}
+
+// Runs after the page has finished loading so it never slows the page down
+async function logVisit() {
+    const page = document.title.split('|').pop().trim();
+    try {
+        const key = 'uhs-visit-' + page;
+        if (sessionStorage.getItem(key)) return;
+        sessionStorage.setItem(key, '1');
+    } catch (err) { /* private browsing: log anyway */ }
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            credentials: 'omit',
+            body: JSON.stringify({ action: 'logVisit', payload: { page, referrer: document.referrer, client: await clientInfo() } })
+        });
+    } catch (err) { /* never bother the visitor if logging fails */ }
+}
+
+if (document.readyState === 'complete') logVisit();
+else window.addEventListener('load', logVisit);
