@@ -607,8 +607,7 @@ This is a public website about working with elementary school children. Please f
 3. **Think carefully about personal phone numbers.** The Contact page lists student leaders' cell numbers.
    Each person should agree to that, and consider listing school emails only.
 4. **Sheet access:** give *edit* access only to inventory leaders; others can comment.
-5. **The Submission Log is for accountability, not tracking.** Leaders are told on the pop-up that their name and
-   device details are saved. What's recorded: name, device/browser (e.g. "Chrome on ChromeOS"), screen size,
+5. **The Submission Log is for accountability, not tracking.** What's recorded: name, device/browser (e.g. "Chrome on ChromeOS"), screen size,
    language, time zone, a random **device ID** saved in that browser (to tell whether two submissions came from the
    same device), and the browser's full description. **IP addresses are not recorded**: Google Apps Script doesn't
    provide them, and on the school network everyone shares one anyway. Only advisors and lead inventory leaders
