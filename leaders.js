@@ -110,10 +110,18 @@ function describeDevice(ua) {
     return `${browser} on ${os}`;
 }
 
-function clientInfo() {
+// The browser can't see its own public IP address, so it asks ipify (a free lookup service) once per page load.
+// If that's blocked or slow (3 seconds), the logs just say "unavailable".
+const ipAddress = Promise.race([
+    fetch('https://api.ipify.org?format=json', { credentials: 'omit' }).then(r => r.json()).then(d => d.ip),
+    new Promise(resolve => setTimeout(() => resolve('unavailable'), 3000))
+]).catch(() => 'unavailable');
+
+async function clientInfo() {
     let timeZone = '';
     try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (err) {}
     return {
+        ip: await ipAddress,
         device: describeDevice(navigator.userAgent),
         screen: `${screen.width}×${screen.height} @${window.devicePixelRatio || 1}x`,
         language: navigator.language,
@@ -162,7 +170,7 @@ $('lockScreen').addEventListener('submit', async e => {
     const lockStatus = $('lockStatus');
     lockStatus.textContent = '';
     try {
-        const ok = await busy($('unlockBtn'), () => callScript('verifyPassword', { password: pw, client: clientInfo() }));
+        const ok = await busy($('unlockBtn'), async () => callScript('verifyPassword', { password: pw, client: await clientInfo() }));
         if (ok === true) {
             leaderPassword = pw;
             $('lockScreen').hidden = true;
@@ -245,7 +253,7 @@ $('requestForm').addEventListener('submit', async e => {
         schoolName: form.schoolName.value,
         password: leaderPassword,
         submittedBy,
-        client: clientInfo(),
+        client: await clientInfo(),
         experiments: Array.from(experimentsContainer.children, card => ({
             name: card.querySelector('.exp-name').value,
             materials: Array.from(card.querySelectorAll('.material-row'), row => ({
@@ -384,7 +392,7 @@ $('feedbackForm').addEventListener('submit', async e => {
     const payload = {
         password: leaderPassword,
         submittedBy,
-        client: clientInfo(),
+        client: await clientInfo(),
         schoolName: form.schoolName.value,
         sessionDate: form.sessionDate.value,
         attendees: Array.from(namesList.querySelectorAll('.person-name'), i => i.value),
@@ -413,6 +421,17 @@ $('feedbackForm').addEventListener('submit', async e => {
     }
 });
 
+// --- Visit Log: record that someone opened the Leaders Hub (once per browser session) ---
+async function logVisit() {
+    try {
+        if (sessionStorage.getItem('uhs-visit-logged')) return;
+        sessionStorage.setItem('uhs-visit-logged', '1');
+    } catch (err) { /* private browsing: log anyway */ }
+    try {
+        await callScript('logVisit', { page: 'Leaders Hub', referrer: document.referrer, client: await clientInfo() });
+    } catch (err) { /* never bother the visitor if logging fails */ }
+}
+
 // --- Start-up ---
 document.querySelectorAll('.school-select').forEach(select => {
     select.innerHTML = '<option value="" disabled selected>Select a location...</option>';
@@ -420,3 +439,4 @@ document.querySelectorAll('.school-select').forEach(select => {
 });
 resetFeedbackForm();
 addExperiment(); // Start with one experiment card
+logVisit();

@@ -424,8 +424,10 @@ On phones only the second calendar (the event list) is shown, because a month gr
 3. **Every submission includes the password**, and the script checks it again each time. So nobody can skip the
    lock screen and send data directly.
 4. The script replies with `"Success"` or an error message, which the page shows.
-5. **Every submission is recorded in the Submission Log** with the submitter's name and device details
-   (see [section 8](#8-the-inventory-google-sheet-and-archive--purge)). Wrong passwords are logged too.
+5. **Every submission is recorded in the Submission Log** with the submitter's name, IP address and device details
+   (see [section 8](#8-the-inventory-google-sheet-and-archive--purge)). Wrong passwords are logged too, and every
+   time someone opens the Leaders Hub page goes in the **Visit Log**. The IP address comes from a free lookup
+   service (ipify) that the browser asks when the page loads; if it's blocked, the logs say "unavailable".
 6. **Text that starts with `=`, `+`, `-` or `@` is stored as plain text**, never as a formula, so nobody can
    slip a spreadsheet formula (which could leak data) into the sheet through a form.
 7. **Photos are shrunk in the browser before uploading** (to at most 1600 px, JPEG). Phone photos are 3–5 MB each;
@@ -454,7 +456,8 @@ any Google sign-in** (`credentials: 'omit'` in `leaders.js`), so it works on eve
 | **ORDER** | Ignored by Archive & Purge (used by inventory leaders for ordering). |
 | **Feedback** | Created automatically the first time feedback is submitted: *Timestamp · School · Session Date · Attendance · # Attended · What Went Well · What Didn't Go Well · How Can We Improve · Photos · Submitted By*. The **Photos** cell is a link such as **📷 4 photo(s)** that opens that session's photo folder. |
 | **Archive** | Created automatically by Archive & Purge. Past sessions, neatly grouped. |
-| **Submission Log** | Created automatically. One row for every materials request, feedback submission and **wrong password**: *Timestamp · Action · School · Submitted By · Details · Device · Screen · Language · Time Zone · Device ID · Browser Info*. **Never cleared** by Archive & Purge; it's the permanent record. |
+| **Submission Log** | Created automatically. One row for every materials request, feedback submission and **wrong password**: *Timestamp · Action · School · Submitted By · Details · IP Address · Device · Screen · Language · Time Zone · Device ID · Browser Info*. **Never cleared** by Archive & Purge; it's the permanent record. |
+| **Visit Log** | Created automatically. One row each time someone opens the **Leaders Hub** page (once per browser session): *Timestamp · Page · IP Address · Came From · Device · Screen · Language · Time Zone · Device ID · Browser Info*. Also never cleared. Limited to 10 rows a minute and 300 a day so a bot can't flood it. |
 
 If someone requests materials for a school that has no tab yet, the script creates a basic tab for it.
 It's better to duplicate the template tab yourself first so it has the proper header rows.
@@ -523,6 +526,7 @@ longer used and have been removed.)
 | `savePhotos_(…)` | Saves the uploaded photos into `Leaders Hub Photos/<date> — <school>/` and returns the link for the sheet. |
 | `setupPhotoFolder()` | Run **once by hand** after setting up (or moving) the script: grants Google Drive permission and creates the photo folder. |
 | `logEvent_(…)` | Adds a row to the **Submission Log** tab. |
+| `logVisit(payload)` | Adds a row to the **Visit Log** tab when the Leaders Hub opens (rate-limited). |
 | `clean_(text)` / `fullName_(text)` | Make form text safe for the sheet (length limit, no formulas) / check a first + last name. |
 | `onOpen()` | Adds the **🛠️ Leaders Hub Admin** menu when the sheet opens. |
 | `archiveAndPurge()` | The archive routine described above. |
@@ -607,12 +611,16 @@ This is a public website about working with elementary school children. Please f
 3. **Think carefully about personal phone numbers.** The Contact page lists student leaders' cell numbers.
    Each person should agree to that, and consider listing school emails only.
 4. **Sheet access:** give *edit* access only to inventory leaders; others can comment.
-5. **The Submission Log is for accountability, not tracking.** What's recorded: name, device/browser (e.g. "Chrome on ChromeOS"), screen size,
-   language, time zone, a random **device ID** saved in that browser (to tell whether two submissions came from the
-   same device), and the browser's full description. **IP addresses are not recorded**: Google Apps Script doesn't
-   provide them, and on the school network everyone shares one anyway. Only advisors and lead inventory leaders
-   should look at the log, and only if something goes wrong. Consider protecting the tab (right-click the tab →
-   **Protect sheet**) so others can't edit it.
+5. **The Submission Log and Visit Log are for accountability, not tracking.** What's recorded: name (submissions
+   only), **IP address**, device/browser (e.g. "Chrome on ChromeOS"), screen size, language, time zone, a random
+   **device ID** saved in that browser (to tell whether entries came from the same device), and the browser's full
+   description. Only the **Leaders Hub** page is logged, never the public pages.
+   - **About the IP address:** Google Apps Script can't see it, so the browser looks it up from **ipify**
+     (api.ipify.org), which means each Leaders Hub visitor's IP is sent to that service. Because the browser reports
+     it, a determined person can fake or block it, and on school Wi-Fi everyone shares the school's IP. Treat it as
+     a clue, not proof. The **device ID** is usually more useful.
+   - Only advisors and lead inventory leaders should look at the logs, and only if something goes wrong. Protect
+     both tabs (right-click the tab → **Protect sheet**) so others can't edit them.
 
 ---
 
@@ -627,7 +635,7 @@ This is a public website about working with elementary school children. Please f
 | Leaders Hub: "Incorrect password" for everyone | Check `FORM_PASSWORD` in Script Properties (no extra spaces). |
 | Feedback with photos: "Error saving photos: … authorization …" | The script was given photo support but nobody ran `setupPhotoFolder` once to grant Google Drive permission (section 9). |
 | "Please enter your first and last name." | The name pop-up needs at least two words, e.g. "Jordan Smith". |
-| Someone submitted something wrong or suspicious | Check the **Submission Log** tab: time, name, school, device and device ID. The same device ID on several rows means the same browser/device. |
+| Someone submitted something wrong or suspicious | Check the **Submission Log** tab: time, name, school, IP, device and device ID. The same device ID on several rows means the same browser/device; look it up in the **Visit Log** too. Many "Wrong password" rows in a row means someone is guessing. Change the password (6.4). |
 | Leaders Hub: an error mentioning `doPost`, or the health check fails | The deployment wasn't updated, or "Who has access" isn't **Anyone**. Redeploy with **New version** (section 9). |
 | Requests go to a new, strangely named tab | The school's value in `SCHOOLS` (`leaders.js`) doesn't exactly match the tab name (watch capitals and trailing spaces). |
 | Archive & Purge menu missing | Reload the sheet; you need edit access. |

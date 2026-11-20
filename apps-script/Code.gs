@@ -6,10 +6,16 @@ const NUM_COLS = 5; // Timestamp, Experiment, Material, Qty, Notes
 const FEEDBACK_SHEET = "Feedback";
 const FEEDBACK_HEADERS = ["Timestamp", "School", "Session Date", "Attendance", "# Attended", "What Went Well", "What Didn't Go Well", "How Can We Improve", "Photos", "Submitted By"];
 
-// Every submission (and every wrong password) is recorded here with who sent it and from what device.
-// Archive & Purge never clears this tab, so it's a permanent record.
+// Two permanent logs (Archive & Purge never clears them):
+//  - Submission Log: every submission and every wrong password, with who sent it and from what device
+//  - Visit Log: every time someone opens the Leaders Hub page (once per browser session)
+// The IP address is looked up by the visitor's browser (ipify), so it's "unavailable" if that lookup was blocked.
 const LOG_SHEET = "Submission Log";
-const LOG_HEADERS = ["Timestamp", "Action", "School", "Submitted By", "Details", "Device", "Screen", "Language", "Time Zone", "Device ID", "Browser Info (full)"];
+const LOG_HEADERS = ["Timestamp", "Action", "School", "Submitted By", "Details", "IP Address", "Device", "Screen", "Language", "Time Zone", "Device ID", "Browser Info (full)"];
+const VISIT_SHEET = "Visit Log";
+const VISIT_HEADERS = ["Timestamp", "Page", "IP Address", "Came From", "Device", "Screen", "Language", "Time Zone", "Device ID", "Browser Info (full)"];
+const MAX_VISITS_PER_MINUTE = 10;  // these two limits stop a bot from flooding the Visit Log
+const MAX_VISITS_PER_DAY = 300;
 
 // Session photos are saved in Google Drive (in a folder next to this spreadsheet), one sub-folder per school + date.
 // The Feedback row links to that sub-folder.
@@ -22,7 +28,7 @@ const MAX_PHOTOS = 10;
  * signed into can't block the form.
  */
 function doPost(e) {
-  const handlers = { verifyPassword, processForm, submitFeedback };
+  const handlers = { verifyPassword, processForm, submitFeedback, logVisit };
   let result;
   try {
     const request = JSON.parse(e.postData.contents);
@@ -67,29 +73,67 @@ function fullName_(value) {
   return name.split(" ").length >= 2 && name.length <= 80 ? clean_(name) : "";
 }
 
-/** Returns the Submission Log tab, creating and formatting it the first time */
-function getLogSheet_(ss) {
-  let sheet = ss.getSheetByName(LOG_SHEET);
+/** Returns a log tab, creating and formatting it the first time */
+function getLogTab_(name, headers) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(LOG_SHEET);
-    sheet.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS])
+    sheet = ss.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers])
         .setFontWeight("bold").setBackground("#333333").setFontColor("white");
     sheet.setFrozenRows(1);
-    sheet.setColumnWidths(1, 4, 150);
-    sheet.setColumnWidth(5, 220);
-    sheet.setColumnWidth(6, 200);
+    sheet.setColumnWidths(1, headers.length - 1, 150);
+  } else if (name === LOG_SHEET && sheet.getRange(1, 6).getValue() === "Device") {
+    // Submission Log made before IP addresses were recorded: add the IP Address column after Details
+    sheet.insertColumnBefore(6);
+    sheet.getRange(1, 6).setValue("IP Address").setFontWeight("bold").setBackground("#333333").setFontColor("white");
   }
   return sheet;
 }
 
-/** Adds one row to the Submission Log. `client` is the device info the website sends (see leaders.js → clientInfo). */
-function logEvent_(action, school, submittedBy, details, client) {
+/** The device details the website sends (see leaders.js → clientInfo), cleaned for the sheet */
+function deviceColumns_(client) {
   const c = client && typeof client === "object" ? client : {};
-  appendRows_(getLogSheet_(SpreadsheetApp.getActiveSpreadsheet()), [[
-    new Date(), action, clean_(school, 100), submittedBy, clean_(details, 500),
-    clean_(c.device, 200), clean_(c.screen, 50), clean_(c.language, 50), clean_(c.timeZone, 80),
-    clean_(c.deviceId, 80), clean_(c.userAgent, 500)
-  ]], 2);
+  return {
+    ip: clean_(c.ip, 60) || "unavailable",
+    rest: [clean_(c.device, 200), clean_(c.screen, 50), clean_(c.language, 50), clean_(c.timeZone, 80),
+           clean_(c.deviceId, 80), clean_(c.userAgent, 500)]
+  };
+}
+
+/** Adds one row to the Submission Log */
+function logEvent_(action, school, submittedBy, details, client) {
+  const d = deviceColumns_(client);
+  appendRows_(getLogTab_(LOG_SHEET, LOG_HEADERS), [[
+    new Date(), action, clean_(school, 100), submittedBy, clean_(details, 500), d.ip
+  ].concat(d.rest)], 2);
+}
+
+/**
+ * Called when someone opens the Leaders Hub page (no password needed, so it's rate-limited:
+ * at most MAX_VISITS_PER_MINUTE rows a minute and MAX_VISITS_PER_DAY a day, and one per device every 10 minutes).
+ */
+function logVisit(payload) {
+  const p = payload && typeof payload === "object" ? payload : {};
+  const d = deviceColumns_(p.client);
+  const cache = CacheService.getScriptCache();
+  const deviceKey = "visit-" + (d.rest[4] || d.ip).slice(0, 200);
+  if (cache.get(deviceKey)) return "OK";
+  const minuteKey = "visits-min-" + Math.floor(Date.now() / 60000);
+  const dayKey = "visits-day-" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+  const perMinute = Number(cache.get(minuteKey) || 0);
+  const perDay = Number(cache.get(dayKey) || 0);
+  if (perMinute >= MAX_VISITS_PER_MINUTE || perDay >= MAX_VISITS_PER_DAY) return "OK";
+  cache.put(minuteKey, String(perMinute + 1), 120);
+  cache.put(dayKey, String(perDay + 1), 21600); // 6 hours is the longest the cache keeps anything
+  cache.put(deviceKey, "1", 600);
+
+  return withLock_(() => {
+    appendRows_(getLogTab_(VISIT_SHEET, VISIT_HEADERS), [[
+      new Date(), clean_(p.page, 100), d.ip, clean_(p.referrer, 300) || "(typed in / bookmark)"
+    ].concat(d.rest)], 2);
+    return "OK";
+  });
 }
 
 /** Makes sure the sheet has at least `lastRow` rows (setValues can't grow a sheet like appendRow can) */
@@ -292,7 +336,7 @@ function archiveAndPurge() {
     const sheetName = sheet.getName();
 
     // Skip non-school tabs
-    if (sheetName === "Archive" || sheetName === "ORDER" || sheetName === FEEDBACK_SHEET || sheetName === LOG_SHEET || sheetName.includes("Template")) continue;
+    if (sheetName === "Archive" || sheetName === "ORDER" || sheetName === FEEDBACK_SHEET || sheetName === LOG_SHEET || sheetName === VISIT_SHEET || sheetName.includes("Template")) continue;
 
     const lastRow = sheet.getLastRow();
     if (lastRow < FIRST_DATA_ROW) continue; // No materials requested here
