@@ -77,6 +77,84 @@ function showSummary(box, title, items) {
     box.hidden = false;
 }
 
+// --- Who is submitting? (name pop-up + device details, recorded in the sheet's Submission Log) ---
+
+// A random ID saved in this browser, so the log shows when submissions come from the same device
+function deviceId() {
+    try {
+        let id = localStorage.getItem('uhs-device-id');
+        if (!id) {
+            id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+            localStorage.setItem('uhs-device-id', id);
+        }
+        return id;
+    } catch (err) {
+        return 'unavailable (private browsing?)';
+    }
+}
+
+// A readable summary like "Chrome on ChromeOS" or "Safari on iPhone"
+function describeDevice(ua) {
+    const os = /CrOS/.test(ua) ? 'ChromeOS'
+        : /iPhone/.test(ua) ? 'iPhone'
+        : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad'
+        : /Android/.test(ua) ? 'Android'
+        : /Windows/.test(ua) ? 'Windows'
+        : /Macintosh/.test(ua) ? 'Mac'
+        : /Linux/.test(ua) ? 'Linux' : 'Unknown device';
+    const browser = /Edg\//.test(ua) ? 'Edge'
+        : /OPR\//.test(ua) ? 'Opera'
+        : /CriOS|Chrome\//.test(ua) ? 'Chrome'
+        : /FxiOS|Firefox\//.test(ua) ? 'Firefox'
+        : /Safari\//.test(ua) ? 'Safari' : 'Unknown browser';
+    return `${browser} on ${os}`;
+}
+
+function clientInfo() {
+    let timeZone = '';
+    try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (err) {}
+    return {
+        device: describeDevice(navigator.userAgent),
+        screen: `${screen.width}×${screen.height} @${window.devicePixelRatio || 1}x`,
+        language: navigator.language,
+        timeZone,
+        deviceId: deviceId(),
+        userAgent: navigator.userAgent
+    };
+}
+
+// Shows the pop-up and resolves with the typed full name, or null if the leader pressed Cancel / Esc
+function askForName() {
+    const dialog = $('nameDialog'), form = $('nameForm'), input = $('submitterName'), error = $('nameError');
+    input.value = '';
+    error.textContent = '';
+    return new Promise(resolve => {
+        const finish = name => {
+            form.removeEventListener('submit', onSubmit);
+            $('nameCancel').removeEventListener('click', onCancel);
+            dialog.removeEventListener('cancel', onCancel);
+            dialog.close();
+            resolve(name);
+        };
+        const onSubmit = e => {
+            e.preventDefault();
+            const name = input.value.replace(/\s+/g, ' ').trim();
+            if (name.split(' ').length < 2) {
+                error.textContent = 'Please enter your first and last name.';
+                input.focus();
+                return;
+            }
+            finish(name);
+        };
+        const onCancel = e => { e.preventDefault(); finish(null); };
+        form.addEventListener('submit', onSubmit);
+        $('nameCancel').addEventListener('click', onCancel);
+        dialog.addEventListener('cancel', onCancel); // Esc key
+        dialog.showModal();
+        input.focus();
+    });
+}
+
 // --- Unlock screen ---
 $('lockScreen').addEventListener('submit', async e => {
     e.preventDefault();
@@ -84,7 +162,7 @@ $('lockScreen').addEventListener('submit', async e => {
     const lockStatus = $('lockStatus');
     lockStatus.textContent = '';
     try {
-        const ok = await busy($('unlockBtn'), () => callScript('verifyPassword', pw));
+        const ok = await busy($('unlockBtn'), () => callScript('verifyPassword', { password: pw, client: clientInfo() }));
         if (ok === true) {
             leaderPassword = pw;
             $('lockScreen').hidden = true;
@@ -159,11 +237,15 @@ $('requestForm').addEventListener('submit', async e => {
     e.preventDefault();
     const form = e.target;
     const status = $('status');
+    const submittedBy = await askForName();
+    if (!submittedBy) return;
     $('summary').hidden = true;
 
     const payload = {
         schoolName: form.schoolName.value,
         password: leaderPassword,
+        submittedBy,
+        client: clientInfo(),
         experiments: Array.from(experimentsContainer.children, card => ({
             name: card.querySelector('.exp-name').value,
             materials: Array.from(card.querySelectorAll('.material-row'), row => ({
@@ -181,7 +263,7 @@ $('requestForm').addEventListener('submit', async e => {
         showSummary($('summary'), `Submitted for ${payload.schoolName}:`, payload.experiments.map(exp => [
             exp.name,
             exp.materials.filter(m => m.name.trim()).map(m => `${m.name} — ${m.qty}` + (m.notes ? ` (${m.notes})` : ''))
-        ]));
+        ]).concat([['Submitted by', [submittedBy]]]));
         // Start fresh: clear the school and go back to one empty experiment
         form.reset();
         experimentsContainer.innerHTML = '';
@@ -295,10 +377,14 @@ $('feedbackForm').addEventListener('submit', async e => {
     e.preventDefault();
     const form = e.target;
     const status = $('fbStatus');
+    const submittedBy = await askForName();
+    if (!submittedBy) return;
     $('fbSummary').hidden = true;
 
     const payload = {
         password: leaderPassword,
+        submittedBy,
+        client: clientInfo(),
         schoolName: form.schoolName.value,
         sessionDate: form.sessionDate.value,
         attendees: Array.from(namesList.querySelectorAll('.person-name'), i => i.value),
@@ -318,7 +404,8 @@ $('feedbackForm').addEventListener('submit', async e => {
             ['What went well', [payload.wentWell]],
             ["What didn't go well", [payload.didntGoWell]],
             ['How can we improve', [payload.improve]],
-            ...(payload.photos.length ? [['Photos', [`${payload.photos.length} uploaded`]]] : [])
+            ...(payload.photos.length ? [['Photos', [`${payload.photos.length} uploaded`]]] : []),
+            ['Submitted by', [submittedBy]]
         ]);
         resetFeedbackForm();
     } catch (err) {

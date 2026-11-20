@@ -4,7 +4,12 @@ const NUM_COLS = 5; // Timestamp, Experiment, Material, Qty, Notes
 
 // Feedback / attendance submissions all go to one tab (header in row 1)
 const FEEDBACK_SHEET = "Feedback";
-const FEEDBACK_HEADERS = ["Timestamp", "School", "Session Date", "Attendance", "# Attended", "What Went Well", "What Didn't Go Well", "How Can We Improve", "Photos"];
+const FEEDBACK_HEADERS = ["Timestamp", "School", "Session Date", "Attendance", "# Attended", "What Went Well", "What Didn't Go Well", "How Can We Improve", "Photos", "Submitted By"];
+
+// Every submission (and every wrong password) is recorded here with who sent it and from what device.
+// Archive & Purge never clears this tab, so it's a permanent record.
+const LOG_SHEET = "Submission Log";
+const LOG_HEADERS = ["Timestamp", "Action", "School", "Submitted By", "Details", "Device", "Screen", "Language", "Time Zone", "Device ID", "Browser Info (full)"];
 
 // Session photos are saved in Google Drive (in a folder next to this spreadsheet), one sub-folder per school + date.
 // The Feedback row links to that sub-folder.
@@ -38,9 +43,53 @@ function checkPassword_(pw) {
   return !!real && pw === real;
 }
 
-/** Called when a leader presses Unlock on the Leaders Hub */
-function verifyPassword(pw) {
-  return checkPassword_(pw);
+/** Called when a leader presses Unlock on the Leaders Hub. Wrong passwords are recorded in the Submission Log. */
+function verifyPassword(payload) {
+  const isObject = payload !== null && typeof payload === "object";
+  const ok = checkPassword_(isObject ? payload.password : payload);
+  if (!ok) withLock_(() => logEvent_("Wrong password", "", "", "", isObject ? payload.client : null));
+  return ok;
+}
+
+/**
+ * Makes text from the website safe to put in a cell: limits its length, and stops Sheets from treating
+ * text that starts with = + - @ as a formula (formulas typed into a form could be used to leak data).
+ */
+function clean_(value, maxLength) {
+  let text = String(value == null ? "" : value).slice(0, maxLength || 2000);
+  if (/^[=+\-@]/.test(text)) text = "'" + text;
+  return text;
+}
+
+/** A first and last name, cleaned up, or "" if what was typed isn't one */
+function fullName_(value) {
+  const name = String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+  return name.split(" ").length >= 2 && name.length <= 80 ? clean_(name) : "";
+}
+
+/** Returns the Submission Log tab, creating and formatting it the first time */
+function getLogSheet_(ss) {
+  let sheet = ss.getSheetByName(LOG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(LOG_SHEET);
+    sheet.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS])
+        .setFontWeight("bold").setBackground("#333333").setFontColor("white");
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidths(1, 4, 150);
+    sheet.setColumnWidth(5, 220);
+    sheet.setColumnWidth(6, 200);
+  }
+  return sheet;
+}
+
+/** Adds one row to the Submission Log. `client` is the device info the website sends (see leaders.js → clientInfo). */
+function logEvent_(action, school, submittedBy, details, client) {
+  const c = client && typeof client === "object" ? client : {};
+  appendRows_(getLogSheet_(SpreadsheetApp.getActiveSpreadsheet()), [[
+    new Date(), action, clean_(school, 100), submittedBy, clean_(details, 500),
+    clean_(c.device, 200), clean_(c.screen, 50), clean_(c.language, 50), clean_(c.timeZone, 80),
+    clean_(c.deviceId, 80), clean_(c.userAgent, 500)
+  ]], 2);
 }
 
 /** Makes sure the sheet has at least `lastRow` rows (setValues can't grow a sheet like appendRow can) */
@@ -75,12 +124,14 @@ function processForm(data) {
     return "Error: Incorrect password. Please reload the page and log in again.";
   }
   if (!data.schoolName) return "Error: Please select a school.";
+  const submittedBy = fullName_(data.submittedBy);
+  if (!submittedBy) return "Error: Please enter your first and last name.";
 
   const timestamp = new Date();
   const rows = [];
   data.experiments.forEach(exp => {
     exp.materials.forEach(mat => {
-      if (mat.name.trim() !== "") rows.push([timestamp, exp.name, mat.name, mat.qty, mat.notes]);
+      if (String(mat.name).trim() !== "") rows.push([timestamp, clean_(exp.name, 200), clean_(mat.name, 200), clean_(mat.qty, 100), clean_(mat.notes)]);
     });
   });
   if (rows.length === 0) return "Error: No materials were entered.";
@@ -99,6 +150,8 @@ function processForm(data) {
 
     // Never above row 6, so Archive & Purge always picks it up
     appendRows_(sheet, rows, FIRST_DATA_ROW);
+    logEvent_("Materials request", data.schoolName, submittedBy,
+        rows.length + " material(s): " + rows.map(r => r[2]).join(", "), data.client);
     return "Success";
   });
 }
@@ -115,13 +168,17 @@ function getFeedbackSheet_(ss) {
     sheet.setColumnWidth(4, 220);
     sheet.setColumnWidth(5, 90);
     sheet.setColumnWidths(6, 3, 280);
-    sheet.setColumnWidth(9, 130);
+    sheet.setColumnWidths(9, 2, 140);
     sheet.getRange("D:H").setWrap(true);
-  } else if (sheet.getRange(1, FEEDBACK_HEADERS.length).getValue() !== "Photos") {
-    // Feedback tab made before photos existed: add the Photos column header
-    sheet.getRange(1, FEEDBACK_HEADERS.length).setValue("Photos")
-        .setFontWeight("bold").setBackground("#D31145").setFontColor("white");
-    sheet.setColumnWidth(FEEDBACK_HEADERS.length, 130);
+  } else {
+    // Feedback tab made by an older version: add any header that's missing (Photos, Submitted By)
+    const current = sheet.getRange(1, 1, 1, FEEDBACK_HEADERS.length).getValues()[0];
+    FEEDBACK_HEADERS.forEach((header, i) => {
+      if (current[i] === "") {
+        sheet.getRange(1, i + 1).setValue(header).setFontWeight("bold").setBackground("#D31145").setFontColor("white");
+        sheet.setColumnWidth(i + 1, 140);
+      }
+    });
   }
   return sheet;
 }
@@ -169,8 +226,10 @@ function submitFeedback(data) {
     return "Error: Incorrect password. Please reload the page and log in again.";
   }
   if (!data.schoolName) return "Error: Please select a school.";
+  const submittedBy = fullName_(data.submittedBy);
+  if (!submittedBy) return "Error: Please enter your first and last name.";
 
-  const names = data.attendees.map(n => n.trim()).filter(n => n !== "");
+  const names = data.attendees.map(n => String(n).trim()).filter(n => n !== "").map(n => clean_(n, 100));
   if (names.length === 0) return "Error: Please enter at least one name for attendance.";
 
   // Photos are saved first (outside the lock, since uploading takes a few seconds)
@@ -186,9 +245,11 @@ function submitFeedback(data) {
   return withLock_(() => {
     const sheet = getFeedbackSheet_(SpreadsheetApp.getActiveSpreadsheet());
     appendRows_(sheet, [[
-      new Date(), data.schoolName, data.sessionDate, names.join(", "), names.length,
-      data.wentWell, data.didntGoWell, data.improve, photoLink
+      new Date(), clean_(data.schoolName, 100), clean_(data.sessionDate, 20), names.join(", "), names.length,
+      clean_(data.wentWell), clean_(data.didntGoWell), clean_(data.improve), photoLink, submittedBy
     ]], 2);
+    logEvent_("Feedback", data.schoolName, submittedBy,
+        names.length + " attended" + (photoLink ? ", " + Math.min(data.photos.length, MAX_PHOTOS) + " photo(s)" : ""), data.client);
     return "Success";
   });
 }
@@ -231,7 +292,7 @@ function archiveAndPurge() {
     const sheetName = sheet.getName();
 
     // Skip non-school tabs
-    if (sheetName === "Archive" || sheetName === "ORDER" || sheetName === FEEDBACK_SHEET || sheetName.includes("Template")) continue;
+    if (sheetName === "Archive" || sheetName === "ORDER" || sheetName === FEEDBACK_SHEET || sheetName === LOG_SHEET || sheetName.includes("Template")) continue;
 
     const lastRow = sheet.getLastRow();
     if (lastRow < FIRST_DATA_ROW) continue; // No materials requested here
@@ -304,19 +365,21 @@ function archiveAndPurge() {
     const schoolRow = addRow(["", "🏫 " + name, "", "Click '+' to view experiments & feedback ➔", "", ""], schoolHeaders);
 
     for (const exp in school.experiments) {
-      const expRow = addRow(["", "", "🧪 " + exp, "Click '+' to view materials ➔", "", ""], expHeaders);
-      for (const mat of school.experiments[exp]) addRow(["", "", "", mat[2], mat[3], mat[4]]);
+      const expRow = addRow(["", "", "🧪 " + clean_(exp, 200), "Click '+' to view materials ➔", "", ""], expHeaders);
+      // clean_ again: Sheets hides the protective ' when values are read back
+      for (const mat of school.experiments[exp]) addRow(["", "", "", clean_(mat[2]), clean_(mat[3]), clean_(mat[4])]);
       groups.push([expRow + 1, lastAdded()]);                       // Level 4: materials
     }
 
     for (const { row: fb, photos } of school.feedback) {
-      // fb = [Timestamp, School, Session Date, Attendance, # Attended, Went Well, Didn't Go Well, Improve]
+      // fb = [Timestamp, School, Session Date, Attendance, # Attended, Went Well, Didn't Go Well, Improve, Photos, Submitted By]
       const fbRow = addRow(["", "", "📝 Feedback " + asText(fb[2] || fb[0]), "Click '+' to view feedback ➔", "", ""], feedbackHeaders);
-      addRow(["", "", "", "Attendance (" + fb[4] + ")", fb[3], ""]);
-      addRow(["", "", "", "What went well", fb[5], ""]);
-      addRow(["", "", "", "What didn't go well", fb[6], ""]);
-      addRow(["", "", "", "How can we improve", fb[7], ""]);
+      addRow(["", "", "", "Attendance (" + fb[4] + ")", clean_(fb[3]), ""]);
+      addRow(["", "", "", "What went well", clean_(fb[5]), ""]);
+      addRow(["", "", "", "What didn't go well", clean_(fb[6]), ""]);
+      addRow(["", "", "", "How can we improve", clean_(fb[7]), ""]);
       if (photos) addRow(["", "", "", "Photos", photos, ""]);
+      if (fb[9]) addRow(["", "", "", "Submitted by", clean_(fb[9]), ""]);
       groups.push([fbRow + 1, lastAdded()]);                        // Level 4: feedback details
     }
     groups.push([schoolRow + 1, lastAdded()]);                      // Level 3: everything for this school

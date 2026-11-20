@@ -9,8 +9,8 @@
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css?v=2.4">
     <script src="script.js?v=2.4" defer></script>
-    <link rel="stylesheet" href="leaders.css?v=1.2">
-    <script src="leaders.js?v=1.2" defer></script>
+    <link rel="stylesheet" href="leaders.css?v=1.3">
+    <script src="leaders.js?v=1.3" defer></script>
 </head>
 <body>
 
@@ -166,6 +166,20 @@
                 <li><b>Chromebook / computer (Chrome):</b> click the &#8942; menu, then <b>Cast, save, and share → Install page as app</b> (or <b>Create shortcut</b>).</li>
             </ul>
         </section>
+        <!-- "Who is submitting this?" pop-up, shown by leaders.js before every submission -->
+        <dialog id="nameDialog" class="hub name-dialog" aria-labelledby="nameDialogTitle">
+            <form id="nameForm">
+                <h2 id="nameDialogTitle">Who is submitting this?</h2>
+                <label for="submitterName">Your full name (first and last)</label>
+                <input type="text" id="submitterName" autocomplete="name" placeholder="e.g. Jordan Smith">
+                <p class="dialog-error" id="nameError"></p>
+                <p class="dialog-note">For security, your name and basic device details (device type, browser, screen size, time zone and a device ID) are saved with this submission.</p>
+                <div class="dialog-actions">
+                    <button type="button" class="hbtn hbtn-add" id="nameCancel">Cancel</button>
+                    <button type="submit" class="hbtn hbtn-submit">Submit</button>
+                </div>
+            </form>
+        </dialog>
     </main>
 
     <footer>

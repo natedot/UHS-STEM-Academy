@@ -186,3 +186,22 @@
   .hub .material-row .hbtn-remove { align-self: flex-end; min-width: 0; padding: 8px 12px; border: none; }
   .hub .material-row .hbtn-remove .remove-label { display: inline; }
 }
+
+/* "Who is submitting this?" pop-up */
+.hub.name-dialog {
+  width: calc(100% - 32px);
+  max-width: 420px;
+  margin: auto;
+  padding: 25px;
+  color: var(--text-light);
+  border: 1px solid var(--border-dark);
+  border-top: 4px solid var(--primary-red);
+  border-radius: 8px;
+}
+.name-dialog::backdrop { background: rgba(0, 0, 0, 0.75); }
+.name-dialog h2 { font-size: 1.3rem; margin-bottom: 15px; }
+.name-dialog .dialog-error { color: #ea868f; font-size: 14px; font-weight: bold; margin-top: 8px; }
+.name-dialog .dialog-error:empty { display: none; }
+.name-dialog .dialog-note { color: #888; font-size: 13px; line-height: 1.4; margin: 12px 0 18px; }
+.name-dialog .dialog-actions { display: flex; gap: 10px; }
+.name-dialog .dialog-actions .hbtn { flex: 1; margin: 0; }

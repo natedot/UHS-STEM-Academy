@@ -409,7 +409,9 @@ On phones only the second calendar (the event list) is shown, because a month gr
    - **📝 Feedback / Attendance**: pick the school and date (defaults to today), type the full name of everyone who
      helped (**Enter** adds the next name), then the three questions. Optionally tap **📷 Add Photos** (up to 10;
      on phones this offers the camera or photo library). Each photo shows as a preview with an **X** to remove it.
-3. **Submit**. A green message and a summary of exactly what was sent appear; the form clears for the next one.
+3. **Submit**. A pop-up asks **"Who is submitting this?"**: they type their first and last name (one word isn't
+   accepted) and press Submit. Cancel or Esc goes back without sending anything.
+4. A green message and a summary of exactly what was sent (including who submitted it) appear; the form clears for the next one.
 
 ### What happens behind the scenes
 
@@ -422,7 +424,11 @@ On phones only the second calendar (the event list) is shown, because a month gr
 3. **Every submission includes the password**, and the script checks it again each time. So nobody can skip the
    lock screen and send data directly.
 4. The script replies with `"Success"` or an error message, which the page shows.
-5. **Photos are shrunk in the browser before uploading** (to at most 1600 px, JPEG). Phone photos are 3–5 MB each;
+5. **Every submission is recorded in the Submission Log** with the submitter's name and device details
+   (see [section 8](#8-the-inventory-google-sheet-and-archive--purge)). Wrong passwords are logged too.
+6. **Text that starts with `=`, `+`, `-` or `@` is stored as plain text**, never as a formula, so nobody can
+   slip a spreadsheet formula (which could leak data) into the sheet through a form.
+7. **Photos are shrunk in the browser before uploading** (to at most 1600 px, JPEG). Phone photos are 3–5 MB each;
    after shrinking they're a few hundred KB, so uploads are quick on school Wi-Fi. Re-saving also removes hidden
    data such as the GPS location where the photo was taken.
 
@@ -446,8 +452,9 @@ any Google sign-in** (`credentials: 'omit'` in `leaders.js`), so it works on eve
 | **One tab per school** (e.g. `Sifton`, `Mill Plain k-2 `) | Rows 1–5: headers (and a session date typed in cell **D1**). Row 6 down: requests, one material per row: *Timestamp · Experiment · Material · Quantity · Notes*. |
 | A **Template** tab (any tab with "Template" in its name) | Blank layout to duplicate for new schools. Ignored by Archive & Purge. |
 | **ORDER** | Ignored by Archive & Purge (used by inventory leaders for ordering). |
-| **Feedback** | Created automatically the first time feedback is submitted: *Timestamp · School · Session Date · Attendance · # Attended · What Went Well · What Didn't Go Well · How Can We Improve · Photos*. The **Photos** cell is a link such as **📷 4 photo(s)** that opens that session's photo folder. |
+| **Feedback** | Created automatically the first time feedback is submitted: *Timestamp · School · Session Date · Attendance · # Attended · What Went Well · What Didn't Go Well · How Can We Improve · Photos · Submitted By*. The **Photos** cell is a link such as **📷 4 photo(s)** that opens that session's photo folder. |
 | **Archive** | Created automatically by Archive & Purge. Past sessions, neatly grouped. |
+| **Submission Log** | Created automatically. One row for every materials request, feedback submission and **wrong password**: *Timestamp · Action · School · Submitted By · Details · Device · Screen · Language · Time Zone · Device ID · Browser Info*. **Never cleared** by Archive & Purge; it's the permanent record. |
 
 If someone requests materials for a school that has no tab yet, the script creates a basic tab for it.
 It's better to duplicate the template tab yourself first so it has the proper header rows.
@@ -510,11 +517,13 @@ longer used and have been removed.)
 | Function | What it does |
 |---|---|
 | `doPost(e)` | Entry point for the website's Leaders Hub. Reads `{action, payload}` and calls one of the three below. |
-| `verifyPassword(pw)` | Returns true/false. Compares with the `FORM_PASSWORD` Script Property. |
+| `verifyPassword(payload)` | Returns true/false. Compares with the `FORM_PASSWORD` Script Property; logs wrong guesses. |
 | `processForm(data)` | Materials request → rows in the school's tab (never above row 6). |
 | `submitFeedback(data)` | Feedback/attendance → saves photos (if any), then one row in the `Feedback` tab. |
 | `savePhotos_(…)` | Saves the uploaded photos into `Leaders Hub Photos/<date> — <school>/` and returns the link for the sheet. |
 | `setupPhotoFolder()` | Run **once by hand** after setting up (or moving) the script: grants Google Drive permission and creates the photo folder. |
+| `logEvent_(…)` | Adds a row to the **Submission Log** tab. |
+| `clean_(text)` / `fullName_(text)` | Make form text safe for the sheet (length limit, no formulas) / check a first + last name. |
 | `onOpen()` | Adds the **🛠️ Leaders Hub Admin** menu when the sheet opens. |
 | `archiveAndPurge()` | The archive routine described above. |
 | Helpers ending in `_` | Internal helpers: password check, writing rows, a lock so two submissions at the same moment don't overwrite each other. |
@@ -598,6 +607,13 @@ This is a public website about working with elementary school children. Please f
 3. **Think carefully about personal phone numbers.** The Contact page lists student leaders' cell numbers.
    Each person should agree to that, and consider listing school emails only.
 4. **Sheet access:** give *edit* access only to inventory leaders; others can comment.
+5. **The Submission Log is for accountability, not tracking.** Leaders are told on the pop-up that their name and
+   device details are saved. What's recorded: name, device/browser (e.g. "Chrome on ChromeOS"), screen size,
+   language, time zone, a random **device ID** saved in that browser (to tell whether two submissions came from the
+   same device), and the browser's full description. **IP addresses are not recorded**: Google Apps Script doesn't
+   provide them, and on the school network everyone shares one anyway. Only advisors and lead inventory leaders
+   should look at the log, and only if something goes wrong. Consider protecting the tab (right-click the tab →
+   **Protect sheet**) so others can't edit it.
 
 ---
 
@@ -611,6 +627,8 @@ This is a public website about working with elementary school children. Please f
 | Leaders Hub: "Could not reach the spreadsheet" | No internet, or the Apps Script deployment is broken. Run the health check (section 9). |
 | Leaders Hub: "Incorrect password" for everyone | Check `FORM_PASSWORD` in Script Properties (no extra spaces). |
 | Feedback with photos: "Error saving photos: … authorization …" | The script was given photo support but nobody ran `setupPhotoFolder` once to grant Google Drive permission (section 9). |
+| "Please enter your first and last name." | The name pop-up needs at least two words, e.g. "Jordan Smith". |
+| Someone submitted something wrong or suspicious | Check the **Submission Log** tab: time, name, school, device and device ID. The same device ID on several rows means the same browser/device. |
 | Leaders Hub: an error mentioning `doPost`, or the health check fails | The deployment wasn't updated, or "Who has access" isn't **Anyone**. Redeploy with **New version** (section 9). |
 | Requests go to a new, strangely named tab | The school's value in `SCHOOLS` (`leaders.js`) doesn't exactly match the tab name (watch capitals and trailing spaces). |
 | Archive & Purge menu missing | Reload the sheet; you need edit access. |
